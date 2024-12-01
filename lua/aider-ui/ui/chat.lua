@@ -237,7 +237,7 @@ function M.show_input(input_type, default_value)
     end
   end
   local content_popup = popup_input(title, handle_submit, opts, session_title)
-  local file_buf = files.new_file_buffer(content_popup.bufnr, current_session)
+  local file_buf = files.new_file_buffer(content_popup.bufnr, session)
   file_buf:keybind(content_popup)
   file_buf:update_file_content()
 end
