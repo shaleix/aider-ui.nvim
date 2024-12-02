@@ -60,6 +60,24 @@ function M.create_session(new_session_name, on_started, cwd)
   return current_session
 end
 
+local function on_session_deleted()
+  local ui = require("aider-ui.ui.side_split")
+  if ui.is_split_visible() then
+    ui.aider_hide()
+  end
+end
+
+local function on_session_changed()
+  local ui = require("aider-ui.ui.side_split")
+  if #M.sessions == 0 then
+    -- create new session
+    return ui.show_aider_split()
+  end
+  if ui.is_split_visible() then
+    return ui.show_aider_split()
+  end
+end
+
 function M.next_session()
   local current_index = nil
   for i, session in ipairs(M.sessions) do
@@ -70,7 +88,7 @@ function M.next_session()
   end
 
   if current_index == nil then
-    utils.err("当前没有活动的会话。")
+    utils.err("No active session")
     return
   end
 
@@ -133,7 +151,6 @@ end
 function M.close_session()
   M.current_session():exit()
 
-  -- 删除当前会话
   for i, session in ipairs(M.sessions) do
     if session.port == M.current_port then
       table.remove(M.sessions, i)
@@ -141,11 +158,9 @@ function M.close_session()
     end
   end
 
-  -- 如果没有更多的会话，则重置当前会话
   if #M.sessions == 0 then
     M.current_port = nil
   else
-    -- 切换到下一个会话
     local next_session = M.sessions[1]
     M.current_port = next_session.port
   end
@@ -165,28 +180,10 @@ function M.list_session_status()
   return status_list
 end
 
-function on_session_deleted()
-  local ui = require("aider-ui.ui.side_split")
-  if ui.is_split_visible() then
-    ui.aider_hide()
-  end
-end
-
-function on_session_changed()
-  local ui = require("aider-ui.ui.side_split")
-  if #M.sessions == 0 then
-    -- create new session
-    return ui.show_aider_split()
-  end
-  if ui.is_split_visible() then
-    return ui.show_aider_split()
-  end
-end
-
 function M.save_session(file_path)
   local session = M.current_session()
   if session == nil then
-    utils.err("没有活动的会话。")
+    utils.err("No active session")
     return
   end
   session:save(file_path)

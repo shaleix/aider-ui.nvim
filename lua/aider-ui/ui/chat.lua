@@ -6,14 +6,7 @@ local utils = require("aider-ui.utils")
 local last_input_content = {}
 local mapOpts = { noremap = true }
 
-M.get_last_content = function(prompt)
-  if last_input_content[prompt] == nil then
-    last_input_content[prompt] = ""
-  end
-  return last_input_content[prompt]
-end
-
-function popup_input(prompt, on_submit, opts, title)
+local function popup_input(prompt, on_submit, opts, title)
   local Popup = require("nui.popup")
   local NuiText = require("nui.text")
   local Layout = require("nui.layout")

@@ -1,10 +1,33 @@
 local M = {}
 local sessions = require("aider-ui.aider_sessions_manager")
 local configs = require("aider-ui.config").options
-local utils = require("aider-ui.utils")
 local common = require("aider-ui.ui.common")
 local files = require("aider-ui.ui.files")
+local utils = require("aider-ui.utils")
 local mapOpts = { noremap = true }
+
+local function update_session_info(bufnr)
+  local current_session = sessions.current_session()
+  if current_session == nil then
+    utils.err("aider session not start")
+    return
+  end
+  current_session:get_announcements(function(announcements)
+    local lines = {}
+    for _, announcement in ipairs(announcements) do
+      table.insert(lines, announcement)
+    end
+    table.insert(lines, "")
+    table.insert(lines, "")
+
+    current_session:list_files(function(result)
+      local file_lines = current_session:get_file_content(result)
+      vim.list_extend(lines, file_lines)
+
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+    end)
+  end)
+end
 
 function M.session_finder()
   local session_map = {}
@@ -298,29 +321,6 @@ function M.show_session_info()
   popup:mount()
 end
 
-function update_session_info(bufnr)
-  local current_session = sessions.current_session()
-  if current_session == nil then
-    utils.err("aider session not start")
-    return
-  end
-  current_session:get_announcements(function(announcements)
-    local lines = {}
-    for _, announcement in ipairs(announcements) do
-      table.insert(lines, announcement)
-    end
-    table.insert(lines, "")
-    table.insert(lines, "")
-
-    current_session:list_files(function(result)
-      local file_lines = current_session:get_file_content(result)
-      vim.list_extend(lines, file_lines)
-
-      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-    end)
-  end)
-end
-
 function M.create_session_in_working_dir(cwd)
   local title = " Aider New Session "
   common.input("Name: ", function(session_name)
@@ -334,7 +334,7 @@ function M.create_session_in_working_dir(cwd)
       utils.warn("Session name already exist")
       return
     end
-    sessions.create_session(session_name, function () end, cwd)
+    sessions.create_session(session_name, function() end, cwd)
     require("aider-ui.ui.side_split").show_aider_split()
   end, { title = title })
 end

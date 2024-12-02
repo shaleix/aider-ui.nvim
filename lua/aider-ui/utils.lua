@@ -1,6 +1,6 @@
 local M = {}
 
-function get_notify_msg(msg)
+local function get_notify_msg(msg)
   if type(msg) == "table" then
     return table.concat(msg, "\n")
   end
@@ -21,6 +21,15 @@ end
 
 M.dir_path = string.sub(debug.getinfo(1).source, 2, string.len("/utils.lua") * -1)
 
+local function in_targets(path, target_files)
+  for _, file in ipairs(target_files) do
+    if string.find(path, file) then
+      return true
+    end
+  end
+  return false
+end
+
 M.reload_buffers = function(target_files)
   local buffers = vim.api.nvim_list_bufs()
   for _, bufnr in ipairs(buffers) do
@@ -31,15 +40,6 @@ M.reload_buffers = function(target_files)
       end)
     end
   end
-end
-
-function in_targets(path, target_files)
-  for _, file in ipairs(target_files) do
-    if string.find(path, file) then
-      return true
-    end
-  end
-  return false
 end
 
 function M.scroll_bottom(bufnr)

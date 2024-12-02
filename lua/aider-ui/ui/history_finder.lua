@@ -1,11 +1,12 @@
 local M = {}
 local mapOpts = { noremap = true }
 local aider_sessions_manager = require("aider-ui.aider_sessions_manager")
+local utils = require("aider-ui.utils")
 
 function M.input_history_view()
   local session = aider_sessions_manager.current_session()
   if not session then
-    print("No active session found.")
+    utils.warn("No active session found.")
     return
   end
   local Popup = require("nui.popup")
@@ -23,7 +24,7 @@ function M.input_history_view()
       buftype = "nofile",
       swapfile = false,
       undofile = false,
-      modifiable = false,
+      -- modifiable = false,
     },
   })
   popup:mount()
@@ -49,13 +50,12 @@ function M.input_history_view()
     local current_line = lines[line_num + 1]
 
     if current_line:match("^> ") then
-      local entry = entry_map[line_num + 1] -- 获取当前行对应的 entry
+      local entry = entry_map[line_num + 1]
 
       if entry then
         local cmd_type = entry.cmd
         local default_content = entry.content
 
-        -- local content = table.concat(default_content, "\n")
         if cmd_type == "/code" then
           require("aider-ui.ui.chat").show_code_input(default_content)
         elseif cmd_type == "/ask" then

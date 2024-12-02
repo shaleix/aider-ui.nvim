@@ -26,7 +26,7 @@ function M.get_diff(before_path, after_path, opts)
   return diff
 end
 
-function preview_file_changes(items)
+local function preview_file_changes(items)
   local entries = {}
   for _, item in ipairs(items) do
     table.insert(entries, {
@@ -88,12 +88,6 @@ M.preview_current_last_change = function()
     return
   end
   preview_file_changes(last_change)
-end
-
-function M.test_preview()
-  M.preview_file_changes({
-    { path = "/tmp/a.py", before_path = "/tmp/a.py", after_path = "/tmp/b.py" },
-  })
 end
 
 return M

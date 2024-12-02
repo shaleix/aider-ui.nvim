@@ -1,5 +1,5 @@
-local sessions = require("aider-ui.aider_sessions_manager")
 local common = require("aider-ui.ui.common")
+local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
 
 local mapOpts = { noremap = true }
@@ -7,6 +7,21 @@ local mapOpts = { noremap = true }
 local M = {
   split = nil,
 }
+
+local function set_split_winbar(winid)
+  local session_status = sessions.list_session_status()
+  local session_names = {}
+  for _, session in ipairs(session_status) do
+    if session.is_current then
+      table.insert(session_names, "%#DiagnosticError#" .. session.name .. "%*")
+    else
+      table.insert(session_names, session.name)
+    end
+  end
+  local content = table.concat(session_names, "%#Comment# | %#Normal#")
+  local winbar_content = string.format("Aider Session: %s", content)
+  vim.api.nvim_set_option_value("winbar", winbar_content, { win = winid })
+end
 
 M.show_aider_split = function(new_session_name)
   local Split = require("nui.split")
@@ -98,21 +113,6 @@ function M.create_session()
     sessions.create_session(session_name)
     M.show_aider_split()
   end, { title = title })
-end
-
-function set_split_winbar(winid)
-  local session_status = sessions.list_session_status()
-  local session_names = {}
-  for _, session in ipairs(session_status) do
-    if session.is_current then
-      table.insert(session_names, "%#DiagnosticError#" .. session.name .. "%*")
-    else
-      table.insert(session_names, session.name)
-    end
-  end
-  local content = table.concat(session_names, "%#Comment# | %#Normal#")
-  local winbar_content = string.format("Aider Session: %s", content)
-  vim.api.nvim_set_option_value("winbar", winbar_content, { win = winid })
 end
 
 function M.toggle_aider_split()

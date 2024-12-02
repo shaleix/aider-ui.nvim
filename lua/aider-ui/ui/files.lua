@@ -1,55 +1,6 @@
 local config = require("aider-ui.config").options
 local M = {}
 
-local FileBuffer = {}
-
-function M.new_file_buffer(bufnr, session)
-  local self = {}
-  setmetatable(self, { __index = FileBuffer })
-  self.bufnr = bufnr
-  self.session = session
-  return self
-end
-
-function FileBuffer:keybind(popup)
-  popup:map("n", "dd", function()
-    local line_num = vim.fn.line(".")
-    local node = self.lines_node[line_num]
-    if node.type == nil then
-      return
-    end
-    print("drop ".. node.path)
-    self.session:drop_files({ node.path }, function()
-      self:update_file_content()
-    end)
-  end)
-  popup:map("n", "c", function()
-    local line_num = vim.fn.line(".")
-    local node = self.lines_node[line_num]
-    if node.type ~= "file" then
-      return
-    end
-    self.session:exchange_files({ node.path }, function()
-      self:update_file_content()
-    end)
-  end)
-end
-
-function FileBuffer:update_file_content()
-  self.session:list_files(function(res)
-    local file_lines, lines_node = get_file_content(res)
-    vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, file_lines)
-    self.lines_node = lines_node
-  end)
-end
-
-local function get_relative_path(file, cwd)
-  if file:sub(1, #cwd + 1) == cwd .. "/" then
-    return file:sub(#cwd + 2)
-  end
-  return file
-end
-
 local function group_tree_paths(paths)
   local tree = {}
   for _, path in ipairs(paths) do
@@ -96,7 +47,6 @@ local function group_tree_paths(paths)
     end
   end
 
-  -- 对根节点进行合并
   for _, root in ipairs(tree) do
     merge_folders(root, "")
   end
@@ -104,24 +54,23 @@ local function group_tree_paths(paths)
   return tree
 end
 
-function get_node_content(node, indent)
+local function get_node_content(node, indent)
   if node.type == "folder" then
     return string.rep("  ", indent) .. config.icons.folder .. " " .. node.name
   elseif node.type == "file" then
-    local icon, _ = require'nvim-web-devicons'.get_icon_color(node.name)
+    local icon, _ = require("nvim-web-devicons").get_icon_color(node.name)
     return string.rep("  ", indent) .. (icon or "") .. " " .. node.name
   else
     return string.rep("  ", indent) .. node.name
   end
 end
 
--- 递归遍历树形结构并生成行
 local function traverse_tree(node, indent, aider_type)
   local lines = {}
   local lines_path = {}
   for _, child in ipairs(node) do
     table.insert(lines, get_node_content(child, indent))
-    table.insert(lines_path, {path = child.path, type=child.type, aider_type = aider_type})
+    table.insert(lines_path, { path = child.path, type = child.type, aider_type = aider_type })
     if child.type == "folder" and child.children then
       local sub_lines, sub_lines_path = traverse_tree(child.children, indent + 1, aider_type)
       vim.list_extend(lines, sub_lines)
@@ -131,7 +80,7 @@ local function traverse_tree(node, indent, aider_type)
   return lines, lines_path
 end
 
-function get_file_content(result)
+local function get_file_content(result)
   -- local cwd = vim.fn.getcwd()
   local added, readonly = result.added, result.readonly
   local lines = {}
@@ -160,6 +109,47 @@ function get_file_content(result)
     vim.list_extend(lines_path, read_lines_path)
   end
   return lines, lines_path
+end
+
+local FileBuffer = {}
+
+function M.new_file_buffer(bufnr, session)
+  local self = {}
+  setmetatable(self, { __index = FileBuffer })
+  self.bufnr = bufnr
+  self.session = session
+  return self
+end
+
+function FileBuffer:keybind(popup)
+  popup:map("n", "dd", function()
+    local line_num = vim.fn.line(".")
+    local node = self.lines_node[line_num]
+    if node.type == nil then
+      return
+    end
+    self.session:drop_files({ node.path }, function()
+      self:update_file_content()
+    end)
+  end)
+  popup:map("n", "c", function()
+    local line_num = vim.fn.line(".")
+    local node = self.lines_node[line_num]
+    if node.type ~= "file" then
+      return
+    end
+    self.session:exchange_files({ node.path }, function()
+      self:update_file_content()
+    end)
+  end)
+end
+
+function FileBuffer:update_file_content()
+  self.session:list_files(function(res)
+    local file_lines, lines_node = get_file_content(res)
+    vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, file_lines)
+    self.lines_node = lines_node
+  end)
 end
 
 return M

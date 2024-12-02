@@ -10,7 +10,7 @@ function Client:connect(response_callback, chunk_response_callback)
   self.params = {}
 
   if response_callback == nil then
-    response_callback = function () end
+    response_callback = function() end
   end
 
   if chunk_response_callback == nil then
@@ -73,7 +73,7 @@ function Client:close()
   self.socket:close()
 end
 
-function create_client(host, port)
+local function create_client(host, port)
   local client = { host = host, port = port }
   setmetatable(client, { __index = Client })
   return client
