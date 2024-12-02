@@ -131,7 +131,6 @@ local function traverse_tree(node, indent, aider_type)
   return lines, lines_path
 end
 
--- file content
 function get_file_content(result)
   -- local cwd = vim.fn.getcwd()
   local added, readonly = result.added, result.readonly

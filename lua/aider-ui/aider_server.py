@@ -505,7 +505,7 @@ def copy_files_to_dir(file_paths, dir_path) -> Dict[str, str]:
     file_map = {}
 
     for file_path in file_paths:
-        file_name = file_path.replace(os.path.sep, "@@").replace(" ", "_")
+        file_name = str(file_path).replace(os.path.sep, "@@").replace(" ", "_")
         dest_path = os.path.join(dir_path, file_name)
         shutil.copy2(file_path, dest_path)
         file_map[file_path] = dest_path

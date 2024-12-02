@@ -4,6 +4,16 @@ local configs = require("aider-ui.config").options
 
 local Session = {}
 
+local function common_on_response(res, method, params)
+  if res.error and res.error ~= nil then
+    utils.err(vim.inspect(res.error))
+  else
+    local result_str = vim.inspect(res.result)
+    result_str = result_str:sub(2, -2)
+    utils.info(result_str)
+  end
+end
+
 function create(session_name, bufnr, opts)
   local cwd = opts.cwd or nil
   local on_exit = opts.on_exit or function() end
@@ -79,16 +89,16 @@ function Session:exit()
   local client = self:get_client()
   client:connect(function(res, method, params)
     if res.error and res.error ~= nil then
-      utils.err(vim.inspect(res.error), "exit error (Aider)")
+      utils.err(vim.inspect(res.error))
     else
-      utils.info("Aider Exit", "Aider Exit")
+      utils.info("Aider Exit")
     end
   end)
   client:send("exit", {})
 end
 
 function Session:handle_process_status(res)
-  utils.info(res.result, "Aider")
+  utils.info(res.result)
 end
 
 function Session:handle_process_chunk_response(res)
@@ -172,16 +182,6 @@ local get_all_buffers = function()
     end
   end
   return buffer_paths
-end
-
-function common_on_response(res, method, params)
-  if res.error and res.error ~= nil then
-    utils.err(vim.inspect(res.error), "get_input_history error (Aider)")
-  else
-    local result_str = vim.inspect(res.result)
-    result_str = result_str:sub(2, -2)
-    utils.info(result_str)
-  end
 end
 
 function Session:sync_open_buffers()
@@ -305,38 +305,10 @@ function Session:get_input_history(callback)
   client:send("get_history", {})
 end
 
-function Session:update_info_content(bufnr)
-  self.last_info_content_bufnr = bufnr
-  local settings = nil
-  local files = nil
-
-  local set_content = function()
-    if settings == nil or files == nil then
-      return
-    end
-    local info_lines = { "" }
-    local file_lines = self:get_file_content(files)
-    vim.list_extend(info_lines, settings)
-    vim.list_extend(info_lines, { "", "" })
-    vim.list_extend(info_lines, file_lines)
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, info_lines)
-  end
-
-  self:get_announcements(function(announcements_res)
-    settings = announcements_res
-    set_content()
-  end)
-  self:list_files(function(res)
-    files = res
-    set_content()
-  end)
-end
-
 function Session:git_commit(message)
   self:send_cmd("/commit " .. message)
 end
 
--- Add the new save method here
 function Session:save(path, on_response)
   local client = self:get_client()
   client:connect(function(res, method, params)

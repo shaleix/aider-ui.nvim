@@ -1,12 +1,11 @@
 local M = {}
+local files = require("aider-ui.ui.files")
 local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
-local files = require("aider-ui.ui.files")
 
 local last_input_content = {}
 local mapOpts = { noremap = true }
 
--- 添加 get_last_content 函数
 M.get_last_content = function(prompt)
   if last_input_content[prompt] == nil then
     last_input_content[prompt] = ""
@@ -68,7 +67,7 @@ function popup_input(prompt, on_submit, opts, title)
       },
       style = "rounded",
       text = {
-        top = NuiText(prompt, "AiderInputTitle"), -- 修改这里
+        top = NuiText(prompt, "AiderInputTitle"),
         top_align = "left",
         bottom = NuiText("[Ctrl+Enter to submit | Ctrl+t to insert cursor path]", "Comment"),
         bottom_align = "right",
@@ -104,17 +103,16 @@ function popup_input(prompt, on_submit, opts, title)
   local on_input_submit = function()
     local bufnr = bottom_popup.bufnr
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-    local value = table.concat(lines, "\n"):gsub("^%s*(.-)%s*$", "%1") -- 去除首尾空白字符
+    local value = table.concat(lines, "\n"):gsub("^%s*(.-)%s*$", "%1")
 
     if value == "" and not allow_empty then
       utils.warn("submit content is empty, skip")
       return
     end
-    -- 关闭弹出窗口
+
     layout:unmount()
     on_submit(value)
     last_input_content[prompt] = ""
-    -- lua print(vim.api.nvim_get_current_win())
 
     if original_winid then
       vim.defer_fn(function()
