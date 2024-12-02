@@ -90,27 +90,15 @@ class CoderServerHandler:
         """
         if not self.coder:
             return {'added': [], 'readonly': []}, None
-
-        files = self.coder.get_all_relative_files()
-        other_files = []
-        chat_files = []
+        inchat_files = self.coder.get_inchat_relative_files()
         read_only_files = []
-        for file in files:
-            abs_file_path = self.coder.abs_root_path(file)
-            if abs_file_path in (self.coder.abs_fnames or []):
-                chat_files.append(file)
-            else:
-                other_files.append(file)
-
-        # Add read-only files
         for abs_file_path in self.coder.abs_read_only_fnames or []:
             rel_file_path = self.coder.get_rel_fname(abs_file_path)
             read_only_files.append(rel_file_path)
 
         return {
-            'added': chat_files,
+            'added': inchat_files,
             'readonly': read_only_files,
-            'other': other_files
         }, None
 
     def method_add_files(self, params: List[str]):
