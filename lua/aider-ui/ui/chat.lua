@@ -62,7 +62,7 @@ local function popup_input(prompt, on_submit, opts, title)
       text = {
         top = NuiText(prompt, "AiderInputTitle"),
         top_align = "left",
-        bottom = NuiText("[Ctrl+Enter to submit | Ctrl+t to insert cursor path]", "Comment"),
+        bottom = NuiText("[Ctrl + Enter: submit | Ctrl + t: insert cursor path]", "Comment"),
         bottom_align = "right",
       },
       -- highlight = "Grey",
