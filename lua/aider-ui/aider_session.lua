@@ -14,7 +14,7 @@ local function common_on_response(res, method, params)
   end
 end
 
-function create(session_name, bufnr, opts)
+local function create(session_name, bufnr, opts)
   local cwd = opts.cwd or nil
   local on_exit = opts.on_exit or function() end
 
@@ -76,11 +76,9 @@ function Session:get_client()
 end
 
 function Session:send_cmd(cmd)
-  -- 发送命令到终端
   vim.fn.chansend(self.job_id, cmd .. "\n")
 end
 
--- interrupt method
 function Session:interrupt()
   vim.fn.chansend(self.job_id, vim.api.nvim_replace_termcodes("<C-c>", true, true, true))
 end
@@ -125,7 +123,7 @@ function Session:handle_process_chunk_response(res)
       table.insert(self.modify_history, res.modified_info)
       local files = {}
       for _, item in ipairs(res.modified_info) do
-        table.insert(files, item.path)
+        table.insert(files, item.abs_path)
       end
       utils.reload_buffers(files)
     end

@@ -295,6 +295,7 @@ class CoderServerHandler:
         )
         modified_info = [{
             'path': file['path'],
+            'abs_path': cls.coder.abs_root_path(file['path']),
             'before_path': file['before_path'],
             'after_path': after_tmp_map[file['path']]
         } for file in cls.change_files['files']]
