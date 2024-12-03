@@ -35,9 +35,13 @@ M.reload_buffers = function(target_files)
   for _, bufnr in ipairs(buffers) do
     local path = vim.api.nvim_buf_get_name(bufnr)
     if in_targets(path, target_files) then
-      vim.api.nvim_buf_call(bufnr, function()
-        vim.cmd("e")
-      end)
+      local buf_mode = vim.api.nvim_get_option_value("modified", { buf = bufnr })
+      local win_mode = vim.api.nvim_get_mode().mode
+      if win_mode == "n" and not buf_mode then
+        vim.api.nvim_buf_call(bufnr, function()
+          vim.cmd("e")
+        end)
+      end
     end
   end
 end
