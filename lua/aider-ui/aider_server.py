@@ -353,7 +353,13 @@ class CoderServerHandler:
             return None, {"code": 32603, "message": "CoderNotInit"}
         if self.__class__.running:
             return None, {"code": 32603, "message": "Server is running"}
+
         file_path = params
+        dir_path = os.path.dirname(file_path)
+
+        if dir_path and not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+
         self.coder.commands.cmd_save(file_path)
         return "save session success", None
 

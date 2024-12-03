@@ -9,7 +9,8 @@ Aider UI for neovim
 - Multiple Sessions support
 - Friendly UI for add / read files
 - Simplify multi-line input
-- Sync buffer files to aider
+- Command for Sync buffer files to aider
+- Save / Load session with files
 
 ---
 
@@ -121,7 +122,7 @@ Others:
 | AiderSwitchModel | Switch Aider Model |
 | AiderHistory | Show Aider Input History |
 | AiderClearContext | Clear the context of the current Aider session |
-| AiderSaveSession | Save the current Aider session to file |
+| AiderSaveCurrentSession | Save the current Aider session to file |
 | AiderLoadSession | Load a saved Aider session from select file |
 
 ## 🔑 Keybindings
