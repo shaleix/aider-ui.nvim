@@ -6,7 +6,7 @@ local finders = require("telescope.finders")
 local sorters = require("telescope.sorters")
 local pickers = require("telescope.pickers")
 local sessions = require("aider-ui.aider_sessions_manager")
-local notify = require("notify")
+local utils = require("aider-ui.utils")
 
 function M.get_diff(before_path, after_path, opts)
   local diff = {}
@@ -79,12 +79,12 @@ end
 M.preview_current_last_change = function()
   local session = sessions.current_session()
   if session == nil then
-    notify("No active session.", "error", { title = "No active session (Aider)" })
+    utils.err("No active session.")
     return
   end
   local last_change = session:get_last_change()
   if last_change == nil then
-    notify("No changes to preview.", vim.log.levels.INFO)
+    utils.info("No changes to preview.")
     return
   end
   preview_file_changes(last_change)

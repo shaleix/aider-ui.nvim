@@ -1,6 +1,7 @@
 local M = {}
 local last_input_content = {}
 local mapOpts = { noremap = true }
+local utils = require("aider-ui.utils")
 
 M.input = function(prompt, on_submit, opts)
   local Input = require("nui.input")
@@ -30,7 +31,7 @@ M.input = function(prompt, on_submit, opts)
     default_value = default_value,
     on_submit = function(value)
       if value == "" and not allow_empty then
-        vim.notify("submit content is empty, skip send", vim.log.levels.WARN)
+        utils.warn("submit content is empty, skip send")
         return
       end
       on_submit(value)

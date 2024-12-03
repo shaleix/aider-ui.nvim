@@ -2,7 +2,7 @@
 
 Aider UI for neovim
 
-> Early development, issue is welcome.
+> Early development, issues is welcome.
 
 ## 🚀 Features
 
@@ -74,7 +74,7 @@ defaults that you can override:
 
 ![code_input](https://github.com/shaleix/aider-ui.nvim/blob/main/asset/code_input.png)
 
-- `:AiderViewLastChange` view diff of last chat changes by aider, currently requires [delta](https://github.com/dandavison/delta) to be installed 
+- `:AiderViewLastChange` view diff of last chat changes by aider, currently requires [delta](https://github.com/dandavison/delta) to be installed
 
 ![preview_change](https://github.com/shaleix/aider-ui.nvim/blob/main/asset/preview_change.png)
 
@@ -84,29 +84,45 @@ defaults that you can override:
 
 ## Commands
 
-| Command                      | Desc                                            |
+Session:
+| Command | Desc |
 | ---------------------------- | ----------------------------------------------- |
-| AiderToggleSplit             | toggle aider split, create session if no active |
-| AiderAddCurrentBuffer        | Add current buffer to Aider                     |
-| AiderReadCurrentBuffer       | Read current buffer into Aider                  |
-| AiderHistory                 | Show Aider Input History                        |
-| AiderSwitchModel             | Switch Aider Model                              |
-| AiderInterruptCurrentSession | Interrupt the current Aider session             |
-| AiderGitCommit               | Commit changes using Aider                      |
-| AiderShowSessionInfo         | Show Aider session info                         |
-| AiderShowFiles               | Show Aider files                                |
-| AiderCode                    | Show Aider /code input                          |
-| AiderArchitect               | Show Aider /architect input                     |
-| AiderAsk                     | Show Aider /ask input                           |
-| AiderSyncOpenBuffers         | Sync open buffers with Aider                    |
-| AiderAddFile                 | Add files to current Aider session              |
-| AiderReadFile                | Read files into current Aider session           |
-| AiderNewSession              | Create Aider Session                            |
-| AiderSessionFinder           | Use Telescope to select Aider session           |
-| AiderSwitchNextSession       | Switch next aider session                       |
-| AiderViewLastChange          | Preview the last change in Aider                |
-| AiderLintCurrentBuffer       | Lint the current buffer using Aider             |
-| AiderCmd                     | Show Aider command input                        |
+| AiderToggleSplit | toggle aider split, create session if no active |
+| AiderNewSession | Create Aider Session |
+| AiderSessionFinder | Use Telescope to select Aider session |
+| AiderSwitchNextSession | Switch next aider session |
+| AiderCloseCurrentSession | Close the current Aider session |
+
+File:
+| Command | Desc |
+| ---------------------------- | ----------------------------------------------- |
+| AiderAddCurrentBuffer | Add current buffer to Aider |
+| AiderReadCurrentBuffer | Read current buffer into Aider |
+| AiderSyncOpenBuffers | Sync open buffers to Aider |
+| AiderAddFile | Add files to current Aider session |
+| AiderReadFile | Read files into current Aider session |
+| AiderReset | Reset and drop files in the current Aider session |
+
+Chat:
+| Command | Desc |
+| ---------------------------- | ----------------------------------------------- |
+| AiderCode | Show Aider /code input |
+| AiderArchitect | Show Aider /architect input |
+| AiderAsk | Show Aider /ask input |
+| AiderCmd | Show Aider command input, maybe easy way to send Y/N to caider |
+| AiderInterruptCurrentSession | Interrupt the current Aider session |
+| AiderViewLastChange | Preview the last change in Aider |
+| AiderLintCurrentBuffer | Lint the current buffer using Aider |
+
+Others:
+| Command | Desc |
+| ---------------------------- | ----------------------------------------------- |
+| AiderGitCommit | Commit changes using Aider |
+| AiderSwitchModel | Switch Aider Model |
+| AiderHistory | Show Aider Input History |
+| AiderClearContext | Clear the context of the current Aider session |
+| AiderSaveSession | Save the current Aider session to file |
+| AiderLoadSession | Load a saved Aider session from select file |
 
 ## 🔑 Keybindings
 

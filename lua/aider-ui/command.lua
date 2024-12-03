@@ -9,6 +9,7 @@ M.setup = function()
   local side_split = require("aider-ui.ui.side_split")
   local chat = require("aider-ui.ui.chat")
   local cmd_input = require("aider-ui.ui.cmd_input")
+  local utils = require("aider-ui.utils")
 
   vim.api.nvim_create_user_command("AiderHistory", function()
     history_finder.input_history_view()
@@ -27,7 +28,7 @@ M.setup = function()
     if current_session then
       current_session:interrupt()
     else
-      vim.notify("No active Aider session found.", vim.log.levels.ERROR, { title = "Aider Interrupt" })
+      utils.err("No active Aider session found.")
     end
   end, { desc = "Interrupt the current Aider session" })
 
@@ -38,10 +39,6 @@ M.setup = function()
   vim.api.nvim_create_user_command("AiderShowSessionInfo", function()
     require("aider-ui.ui.sessions_ui").show_session_info()
   end, { desc = "Show Aider session info" })
-
-  vim.api.nvim_create_user_command("AiderShowFiles", function()
-    require("aider-ui.ui.files_finder").show_files()
-  end, { desc = "Show Aider files" })
 
   vim.api.nvim_create_user_command("AiderToggleSplit", function()
     side_split.toggle_aider_split()
@@ -105,9 +102,39 @@ M.setup = function()
     chat.lint_current_buffer()
   end, { desc = "Lint the current buffer using Aider" })
 
+  vim.api.nvim_create_user_command("AiderReset", function()
+    local current_session = sessions_manager.current_session()
+    if current_session then
+      current_session:reset()
+    else
+      utils.err("No active Aider session found.")
+    end
+  end, { desc = "Reset and drop files in the current Aider session" })
+
+  vim.api.nvim_create_user_command("AiderClearContext", function()
+    local current_session = sessions_manager.current_session()
+    if current_session then
+      current_session:clear()
+    else
+      utils.err("No active Aider session found.")
+    end
+  end, { desc = "Clear the context of the current Aider session" })
+
   vim.api.nvim_create_user_command("AiderCmd", function()
     cmd_input.cmd_popup()
   end, { desc = "Show Aider command input" })
+
+  vim.api.nvim_create_user_command("AiderSaveCurrentSession", function()
+    sessions_ui.save_session()
+  end, { desc = "Save the current Aider session" })
+
+  vim.api.nvim_create_user_command("AiderCloseCurrentSession", function()
+    sessions_manager.close_session()
+  end, { desc = "Close the current Aider session" })
+
+  vim.api.nvim_create_user_command("AiderLoadSession", function()
+    sessions_ui.session_loader()
+  end, { desc = "Load a saved Aider session" })
 end
 
 return M
