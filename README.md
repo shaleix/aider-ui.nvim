@@ -128,3 +128,43 @@ Others:
 ## 🔑 Keybindings
 
 no default keybindings
+
+
+## Status Bar
+
+for NvChad
+
+```lua
+-- chadrc.lua
+-- example show session info, replace file content
+M.ui = {
+  statusline = {
+    modules = {
+      file = function()
+        local session_status = require("aider-ui").session_status()
+        local session_info = ""
+        for _, status in ipairs(session_status) do
+          local indicator
+          if status.need_confirm then
+            indicator = "%#AiderConfirmIndicator#" .. " " .. "%*"
+          elseif status.processing then
+            indicator = "%#AiderProcessingIndicator#" .. " " .. "%*"
+          else
+            indicator = ""
+          end
+          local hi_name = status.is_current and "%#AiderCurrentSession#" .. status.name .. "%*" or status.name
+          local name_with_indicator = indicator .. hi_name
+          local session_name = status.is_current and "[" .. name_with_indicator .. "]" or name_with_indicator
+          session_info = session_info .. session_name .. " "
+        end
+        return "%#StText# " .. session_info
+      end
+    }
+  }
+}
+```
+
+![nvchad_status](https://github.com/shaleix/aider-ui.nvim/blob/main/asset/status_bar.png)
+
+todo: lualine component
+
