@@ -47,7 +47,6 @@ M.setup = function()
     side_split.toggle_aider_split()
   end, { desc = "Toggle Aider split" })
 
-  -- Custom commands
   vim.api.nvim_create_user_command("AiderAddCurrentBuffer", function()
     local buffer_type = vim.bo.buftype
     if buffer_type == "" then
@@ -90,20 +89,17 @@ M.setup = function()
     sessions_manager.read_files(file_paths)
   end, { nargs = "*", desc = "Read files into current Aider session" })
 
-  -- New command for session finder
   vim.api.nvim_create_user_command("AiderSessionFinder", function()
     sessions_ui.session_finder()
   end, { desc = "Use Telescope to select Aider session" })
 
-  -- next session
   vim.api.nvim_create_user_command("AiderSwitchNextSession", function()
     sessions_manager.next_session()
   end, { desc = "Switch next aider session" })
 
-  -- New command for previewing current last change
-  vim.api.nvim_create_user_command("AiderPreviewLastChange", function()
+  vim.api.nvim_create_user_command("AiderViewLastChange", function()
     require("aider-ui.ui.preview_diff").preview_current_last_change()
-  end, { desc = "Preview the last change in Aider" })
+  end, { desc = "View the last change in Aider" })
 
   vim.api.nvim_create_user_command("AiderLintCurrentBuffer", function()
     chat.lint_current_buffer()

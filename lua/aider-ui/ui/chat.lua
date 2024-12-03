@@ -27,6 +27,8 @@ local function popup_input(prompt, on_submit, opts, title)
       text = {
         top = NuiText(title or "", "Comment"),
         top_align = "center",
+        bottom = NuiText("[dd: drop file, c: switch add/read]", "Comment"),
+        bottom_align = "right",
       },
       -- highlight = "Grey",
     },
@@ -40,8 +42,6 @@ local function popup_input(prompt, on_submit, opts, title)
   local support_get_path = true
   utils.get_current_path(function(path)
     cursor_path = path
-    local text = NuiText(string.format("󰍒 %s", cursor_path), "Comment")
-    top_popup.border:set_text("bottom", text)
   end, function()
     support_get_path = false
   end)
@@ -58,8 +58,7 @@ local function popup_input(prompt, on_submit, opts, title)
         left = 1,
         right = 1,
       },
-      style = "rounded",
-      text = {
+      style = "rounded", text = {
         top = NuiText(prompt, "AiderInputTitle"),
         top_align = "left",
         bottom = NuiText("[Ctrl + Enter: submit | Ctrl + t: insert cursor path]", "Comment"),
@@ -99,7 +98,7 @@ local function popup_input(prompt, on_submit, opts, title)
     local value = table.concat(lines, "\n"):gsub("^%s*(.-)%s*$", "%1")
 
     if value == "" and not allow_empty then
-      utils.warn("submit content is empty, skip")
+      utils.warn("Submit content is empty, skip")
       return
     end
 
@@ -168,7 +167,7 @@ local function popup_input(prompt, on_submit, opts, title)
   end, mapOpts)
   bottom_popup:map("i", "<C-t>", function()
     if not support_get_path then
-      vim.notify("get_path not supported", vim.log.levels.WARN)
+      utils.warn("Get path not supported")
     end
     if cursor_path then
       local line = "Target position: " .. cursor_path
@@ -208,7 +207,7 @@ function M.show_input(input_type, default_value)
   end
   local session = sessions.current_session()
   if session == nil then
-    utils.err("No active session.", "No active session (Aider)")
+    utils.err("No active session.")
     return
   end
   local handle_submit = function(value)
@@ -248,7 +247,7 @@ end
 M.lint_current_buffer = function()
   local current_session = sessions.current_session()
   if not current_session then
-    utils.err("No active Aider session found.", "Aider Lint")
+    utils.err("No active Aider session found.")
     return
   end
 
@@ -260,7 +259,7 @@ M.lint_current_buffer = function()
   local buffer_number = vim.api.nvim_get_current_buf()
   local buffer_name = vim.api.nvim_buf_get_name(buffer_number)
   if buffer_name == "" then
-    vim.notify("Current buffer is not a file.", vim.log.levels.WARN, { title = "Aider Lint" })
+    utils.warn("Current buffer is not a file.")
     return
   end
 

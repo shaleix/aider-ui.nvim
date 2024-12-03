@@ -28,7 +28,7 @@ return {
   "shaleix/aider-ui.nvim",
   config = function()
     require("aider-ui").setup({
-      python_path = "/path/to/python", -- python virtual env`` path, with aider install
+      python_path = "/path/to/python", -- python virtual env path, with aider install
       -- -- aider command start arguments
       -- aider_cmd_args = {
       --   "--deepseek",
@@ -68,8 +68,19 @@ defaults that you can override:
 
 ### Usage
 
-`:AiderToggleSplit` toggle aider split and create default session
+- `:AiderToggleSplit` toggle aider split and create default session
+- `:AiderSyncOpenBuffers` sync open buffers to aider, (/add current buffer file, /read others).
+- `:AiderCode` Send /code to aider with input massage
 
+![code_input](https://github.com/shaleix/aider-ui.nvim/blob/main/asset/code_input.png)
+
+- `:AiderViewLastChange` view diff of last chat changes by aider, currently requires [delta](https://github.com/dandavison/delta) to be installed 
+
+![preview_change](https://github.com/shaleix/aider-ui.nvim/blob/main/asset/preview_change.png)
+
+- `:AiderNewSession` create new aider session for edit other files
+
+![new_session](https://github.com/shaleix/aider-ui.nvim/blob/main/asset/new_session.png)
 
 ## Commands
 
@@ -93,7 +104,7 @@ defaults that you can override:
 | AiderNewSession              | Create Aider Session                            |
 | AiderSessionFinder           | Use Telescope to select Aider session           |
 | AiderSwitchNextSession       | Switch next aider session                       |
-| AiderPreviewLastChange       | Preview the last change in Aider                |
+| AiderViewLastChange          | Preview the last change in Aider                |
 | AiderLintCurrentBuffer       | Lint the current buffer using Aider             |
 | AiderCmd                     | Show Aider command input                        |
 

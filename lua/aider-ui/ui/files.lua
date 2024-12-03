@@ -33,7 +33,6 @@ local function group_tree_paths(paths)
     end
   end
 
-  -- 递归合并folder
   local function merge_folders(node, parent_name)
     if node.type == "folder" and #node.children == 1 and node.children[1].type == "folder" then
       node.name = node.name .. "/" .. node.children[1].name
