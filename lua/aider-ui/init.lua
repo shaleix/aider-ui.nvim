@@ -5,8 +5,10 @@ local _setup = false
 M.setup = function(opts)
   local config = require("aider-ui.config")
   local command = require("aider-ui.command")
+  local hl = require("aider-ui.ui.hl")
   config.setup(opts)
   command.setup()
+  hl.setup()
   _setup = true
 end
 

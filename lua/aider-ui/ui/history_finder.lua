@@ -1,23 +1,31 @@
 local M = {}
 local mapOpts = { noremap = true }
-local aider_sessions_manager = require("aider-ui.aider_sessions_manager")
+local sessions_manager = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
 
 function M.input_history_view()
-  local session = aider_sessions_manager.current_session()
+  local session = sessions_manager.current_session()
   if not session then
     utils.warn("No active session found.")
     return
   end
   local Popup = require("nui.popup")
+  local NuiText = require("nui.text")
   local popup = Popup({
     relative = "editor",
     position = "50%",
     enter = true,
     size = { width = 0.8, height = 0.8 },
     border = {
+      padding = {
+        left = 1,
+        right = 1,
+      },
       style = "rounded",
-      text = { top = " Aider Input History " },
+      text = {
+        top = NuiText(" Aider Input History ", "AiderPromptTitle"),
+        top_align = "center",
+      },
     },
     buf_options = {
       filetype = "conf",

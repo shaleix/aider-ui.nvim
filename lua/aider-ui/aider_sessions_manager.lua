@@ -88,7 +88,7 @@ function M.next_session()
   end
 
   if current_index == nil then
-    utils.err("No active session")
+    utils.err("No active session found.")
     return
   end
 
@@ -99,7 +99,7 @@ function M.next_session()
     M.current_port = next_session.port
     on_session_changed()
   else
-    utils.err("没有更多的会话可以切换。")
+    utils.err("No more sessions to switch to.")
   end
 end
 
@@ -112,7 +112,7 @@ function M.switch_session_by_name(name)
       return
     end
   end
-  utils.err("未找到名为 " .. name .. " 的会话。")
+  utils.err("Session named " .. name .. " not found.")
 end
 
 M.sync_open_buffers = function()
@@ -183,7 +183,7 @@ end
 function M.save_session(file_path)
   local session = M.current_session()
   if session == nil then
-    utils.err("No active session")
+    utils.err("No active session found.")
     return
   end
   session:save(file_path)

@@ -1,10 +1,10 @@
 local M = {}
 local mapOpts = { noremap = true }
-local sessions = require("aider-ui.aider_sessions_manager")
+local sessions_manager = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
 
 M.cmd_popup = function()
-  local session = sessions.current_session()
+  local session = sessions_manager.current_session()
   if session == nil then
     utils.err("No active session.")
     return
@@ -29,7 +29,7 @@ M.cmd_popup = function()
       },
       style = "rounded",
       text = {
-        top = NuiText(title or "", "Comment"),
+        top = NuiText(title or "", "AiderPromptTitle"),
         top_align = "center",
       },
     },
@@ -50,7 +50,7 @@ M.cmd_popup = function()
       },
     },
     win_options = {
-      winhighlight = "NormalFloat:Normal,Normal:Normal",
+      winhighlight = "NormalFloat:Normal",
     },
   }, {
     prompt = "  ",
@@ -104,7 +104,7 @@ M.cmd_popup = function()
   original_winid = vim.api.nvim_get_current_win()
 
   layout:mount()
-  vim.api.nvim_win_set_buf(top_popup.winid, current_session.bufnr)
+  vim.api.nvim_win_set_buf(top_popup.winid, session.bufnr)
   vim.api.nvim_set_current_win(top_popup.winid)
   vim.api.nvim_input("<C-\\><C-n>G")
 

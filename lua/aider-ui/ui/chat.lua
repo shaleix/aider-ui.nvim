@@ -16,7 +16,6 @@ local function popup_input(prompt, on_submit, opts, title)
     position = "50%",
     size = {
       width = 80,
-      height = 1,
     },
     border = {
       padding = {
@@ -25,12 +24,11 @@ local function popup_input(prompt, on_submit, opts, title)
       },
       style = "rounded",
       text = {
-        top = NuiText(title or "", "Comment"),
+        top = NuiText(title or "", "AiderPromptTitle"),
         top_align = "center",
-        bottom = NuiText("[dd: drop file, c: switch add/read]", "Comment"),
+        bottom = NuiText("[dd: drop file, c: switch add/read]", "AiderComment"),
         bottom_align = "right",
       },
-      -- highlight = "Grey",
     },
     buf_options = {
       filetype = "aider-fixed-content",
@@ -58,10 +56,11 @@ local function popup_input(prompt, on_submit, opts, title)
         left = 1,
         right = 1,
       },
-      style = "rounded", text = {
-        top = NuiText(prompt, "AiderInputTitle"),
+      style = "rounded",
+      text = {
+        top = NuiText(prompt, "AiderPromptTitle"),
         top_align = "left",
-        bottom = NuiText("[Ctrl + Enter: submit | Ctrl + t: insert cursor path]", "Comment"),
+        bottom = NuiText("[Ctrl + Enter: submit | Ctrl + t: insert cursor path]", "AiderComment"),
         bottom_align = "right",
       },
       -- highlight = "Grey",

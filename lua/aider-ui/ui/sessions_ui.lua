@@ -87,7 +87,6 @@ function M.session_finder()
           local selected_session = require("telescope.actions.state").get_selected_entry()
           if selected_session then
             sessions.delete_session(selected_session.value)
-            -- 重新运行 session_finder 以刷新列表
             M.session_finder()
           end
         end)
@@ -104,6 +103,7 @@ M.save_session = function()
     return
   end
 
+  local NuiText = require("nui.text")
   local Popup = require("nui.popup")
   local Input = require("nui.input")
   local Layout = require("nui.layout")
@@ -121,8 +121,7 @@ M.save_session = function()
       },
       style = "rounded",
       text = {
-        -- top = NuiText("", "Comment"),
-        top = " Save Adier Session ",
+        top = NuiText(" Save Aider Session ", "AiderPromptTitle"),
         top_align = "center",
       },
     },
@@ -179,7 +178,6 @@ M.save_session = function()
   local handle_quite = function()
     layout:unmount()
 
-    -- 重新设置光标回到原来的窗口，延迟1秒
     if original_winid then
       pcall(vim.api.nvim_set_current_win, original_winid)
     end
@@ -210,7 +208,6 @@ M.save_session = function()
     vim.api.nvim_set_current_win(top_popup.winid)
   end, mapOpts)
 
-  -- 记录当前窗口 ID
   original_winid = vim.api.nvim_get_current_win()
 
   layout:mount()
@@ -230,21 +227,18 @@ M.session_loader = function()
   local session_save_dir = require("aider-ui.config").options.session_save_dir
   require("telescope.builtin").find_files({
     prompt_title = "Select aider session to load",
-    cwd = session_save_dir, -- 设置当前工作目录为 local_doc_dir
+    cwd = session_save_dir,
     no_ignore = false,
     follow = true,
     hidden = true,
     attach_mappings = function(prompt_bufnr, map)
-      -- 重写回车键的行为
       map("i", "<CR>", function()
-        -- 获取当前选中的文件路径
         local selection = require("telescope.actions.state").get_selected_entry()
         if selection then
           local session_path = vim.fn.join({ session_save_dir, selection.value }, "/")
           print(session_path)
           current_session:load(session_path)
         end
-        -- 关闭 telescope 窗口
         require("telescope.actions").close(prompt_bufnr)
       end)
       return true
@@ -297,7 +291,6 @@ function M.show_session_info()
   popup:map("i", "<C-q>", handle_quite, mapOpts)
   popup:map("n", "<C-q>", handle_quite, mapOpts)
 
-  -- 添加文件操作的键位映射
   popup:map("n", "dd", function()
     local current_line = vim.api.nvim_buf_get_lines(popup.bufnr, vim.fn.line(".") - 1, vim.fn.line("."), false)[1]
     if current_line and current_line:match("^%s") then
