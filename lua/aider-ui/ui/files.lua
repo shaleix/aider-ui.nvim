@@ -1,4 +1,10 @@
-local config = require("aider-ui.config").options
+local config_module = require("aider-ui.config")
+if not config_module then
+  error("Failed to load config module: aider-ui.config - " .. debug.traceback())
+elseif not config_module.options then
+  error("Failed to load config options from aider-ui.config - " .. debug.traceback())
+end
+local config = config_module.options
 local M = {}
 
 local function group_tree_paths(paths)
@@ -85,7 +91,7 @@ local function get_file_content(result)
   local lines = {}
   local lines_path = {}
 
-  local added_count = #added
+  local added_count = added and #added or 0
   table.insert(lines, " Added Files (" .. added_count .. ")")
   table.insert(lines_path, {})
   if added ~= nil and #added > 0 then
@@ -100,7 +106,7 @@ local function get_file_content(result)
   table.insert(lines_path, {})
   table.insert(lines_path, {})
 
-  local readonly_count = #readonly
+  local readonly_count = readonly and #readonly or 0
   table.insert(lines, " Read-only Files (" .. readonly_count .. ")")
   table.insert(lines_path, {})
   if readonly ~= nil and #readonly > 0 then
