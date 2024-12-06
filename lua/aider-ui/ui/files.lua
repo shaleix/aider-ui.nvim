@@ -85,7 +85,8 @@ local function get_file_content(result)
   local lines = {}
   local lines_path = {}
 
-  table.insert(lines, " Added Files:")
+  local added_count = #added
+  table.insert(lines, " Added Files (" .. added_count .. ")")
   table.insert(lines_path, {})
   if added ~= nil and #added > 0 then
     local group_paths = group_tree_paths(added)
@@ -99,7 +100,8 @@ local function get_file_content(result)
   table.insert(lines_path, {})
   table.insert(lines_path, {})
 
-  table.insert(lines, " Read-only Files:")
+  local readonly_count = #readonly
+  table.insert(lines, " Read-only Files (" .. readonly_count .. ")")
   table.insert(lines_path, {})
   if readonly ~= nil and #readonly > 0 then
     local group_paths = group_tree_paths(readonly)
