@@ -16,6 +16,7 @@ local function popup_input(prompt, on_submit, opts, title)
     position = "50%",
     size = {
       width = 80,
+      height = 1,
     },
     border = {
       padding = {
