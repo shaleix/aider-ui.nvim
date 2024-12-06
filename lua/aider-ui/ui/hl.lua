@@ -4,6 +4,9 @@ M.colors = {
   PromptTitle = "FloatTitle",
   Comment = "Comment",
   Normal = "NormalFloat",
+  Error = "DiagnosticError",
+  Warning = "DiagnosticWarn",
+  Info = "DiagnosticInfo",
 }
 
 M.did_setup = false
