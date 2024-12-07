@@ -2,6 +2,20 @@ local rpc = require("aider-ui.rpc")
 local utils = require("aider-ui.utils")
 local configs = require("aider-ui.config").options
 
+---@alias handle_res fun(res: table)
+
+---@class Session
+---@field name string
+---@field job_id number
+---@field port number
+---@field on_started function|nil
+---@field modify_history table
+---@field bufnr number
+---@field confirm_tips string|nil
+---@field processing boolean
+---@field need_confirm boolean
+---@field last_file_content_bufnr number|nil
+---@field last_info_content_bufnr number|nil
 local Session = {}
 
 local function common_on_response(res, method, params)
@@ -14,6 +28,10 @@ local function common_on_response(res, method, params)
   end
 end
 
+---@param session_name string
+---@param bufnr number
+---@param opts table
+---@return Session
 local function create(session_name, bufnr, opts)
   local cwd = opts.cwd or nil
   local on_exit = opts.on_exit or function() end
@@ -71,10 +89,12 @@ local function create(session_name, bufnr, opts)
   return s
 end
 
+---@return Client
 function Session:get_client()
   return rpc.create_client("127.0.0.1", self.port)
 end
 
+---@param cmd string
 function Session:send_cmd(cmd)
   vim.fn.chansend(self.job_id, cmd .. "\n")
 end
@@ -83,22 +103,28 @@ function Session:interrupt()
   vim.fn.chansend(self.job_id, vim.api.nvim_replace_termcodes("<C-c>", true, true, true))
 end
 
-function Session:exit()
+---@param on_response? handle_res
+function Session:exit(on_response)
   local client = self:get_client()
-  client:connect(function(res, method, params)
+  client:connect(function(res)
     if res.error and res.error ~= nil then
       utils.err(vim.inspect(res.error))
     else
       utils.info("Aider Exit")
     end
+    if on_response then
+      on_response(res.result)
+    end
   end)
   client:send("exit", {})
 end
 
+---@param res table
 function Session:handle_process_status(res)
   utils.info(res.result)
 end
 
+---@param res table
 function Session:handle_process_chunk_response(res)
   if res.type == "aider_start" then
     self.processing = false
@@ -130,22 +156,27 @@ function Session:handle_process_chunk_response(res)
   end
 end
 
+---@param content string
 function Session:ask(content)
   self:send_cmd("{\n" .. "/ask " .. content .. "\n}")
 end
 
+---@param content string
 function Session:code(content)
   self:send_cmd("{\n" .. "/code " .. content .. "\n}")
 end
 
+---@param content string
 function Session:architect(content)
   self:send_cmd("{\n" .. "/architect " .. content .. "\n}")
 end
 
+---@param filenames string
 function Session:lint(filenames)
   self:send_cmd("/lint " .. filenames)
 end
 
+---@param on_response? handle_res
 function Session:clear(on_response)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -157,6 +188,7 @@ function Session:clear(on_response)
   client:send("clear", {})
 end
 
+---@param on_response? handle_res
 function Session:reset(on_response)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -209,6 +241,7 @@ function Session:sync_open_buffers()
   end
 end
 
+---@param callback? handle_res
 function Session:list_files(callback)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -223,6 +256,8 @@ function Session:list_files(callback)
   client:send("list_files", {})
 end
 
+---@param file_paths string[]
+---@param on_res? handle_res
 function Session:add_files(file_paths, on_res)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -234,6 +269,8 @@ function Session:add_files(file_paths, on_res)
   client:send("add_files", file_paths)
 end
 
+---@param file_paths string[]
+---@param on_res? handle_res
 function Session:read_files(file_paths, on_res)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -245,6 +282,8 @@ function Session:read_files(file_paths, on_res)
   client:send("read_files", file_paths)
 end
 
+---@param file_paths string[]
+---@param on_res? handle_res
 function Session:drop_files(file_paths, on_res)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -256,6 +295,8 @@ function Session:drop_files(file_paths, on_res)
   client:send("drop", file_paths)
 end
 
+---@param file_paths string[]
+---@param on_res? handle_res
 function Session:exchange_files(file_paths, on_res)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -267,6 +308,7 @@ function Session:exchange_files(file_paths, on_res)
   client:send("exchange_files", file_paths)
 end
 
+---@param callback? handle_res
 function Session:get_announcements(callback)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -281,6 +323,7 @@ function Session:get_announcements(callback)
   client:send("get_announcements", {})
 end
 
+---@return table?
 function Session:get_last_change()
   if #self.modify_history > 0 then
     return self.modify_history[#self.modify_history]
@@ -289,6 +332,7 @@ function Session:get_last_change()
   end
 end
 
+---@param callback? handle_res
 function Session:get_input_history(callback)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -303,10 +347,13 @@ function Session:get_input_history(callback)
   client:send("get_history", {})
 end
 
+---@param message string
 function Session:git_commit(message)
   self:send_cmd("/commit " .. message)
 end
 
+---@param path string
+---@param on_response? handle_res
 function Session:save(path, on_response)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -318,6 +365,8 @@ function Session:save(path, on_response)
   client:send("save", path)
 end
 
+---@param path string
+---@param on_response? handle_res
 function Session:load(path, on_response)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -333,7 +382,7 @@ end
 --- llm model
 --------------------------------------------------------
 
--- list_models method
+---@param on_response? handle_res
 function Session:list_models(on_response)
   local client = self:get_client()
   client:connect(function(res, method, params)
@@ -348,7 +397,7 @@ function Session:list_models(on_response)
   client:send("list_models", {})
 end
 
--- switch model
+---@param model_name string
 function Session:model(model_name)
   self:send_cmd("/model " .. model_name)
 end

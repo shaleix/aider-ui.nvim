@@ -1,9 +1,17 @@
 local uv = vim.loop
 
+---@alias res_callback fun(json_obj: table, method: string, params: table|string)
+
+---@class Client
+---@field host string
+---@field port integer
+---@field params table|string
 local Client = {}
 local CHUNK_END = "\t\n\t\n"
 local END_OF_MESSAGE = "\r\n\r\n"
 
+---@param response_callback res_callback
+---@param chunk_response_callback? res_callback
 function Client:connect(response_callback, chunk_response_callback)
   self.last_id = 1
   self.method = ""
@@ -24,8 +32,8 @@ function Client:connect(response_callback, chunk_response_callback)
     end
     local response = ""
 
-    self.socket:read_start(function(err, chunk)
-      if err then
+    self.socket:read_start(function(error, chunk)
+      if error then
         return
       end
       if chunk then
@@ -49,6 +57,8 @@ function Client:connect(response_callback, chunk_response_callback)
   end)
 end
 
+---@param method string
+---@param params table|string
 function Client:send(method, params)
   self.last_id = self.last_id + 1
   local idx = self.last_id
@@ -63,6 +73,9 @@ function Client:send(method, params)
   self.socket:write(data)
 end
 
+---@param params table
+---@param on_response res_callback
+---@param on_chunk_response res_callback
 function Client:aider_code(params, on_response, on_chunk_response)
   self:connect(on_response, on_chunk_response)
   self:send("processing", params)
@@ -73,6 +86,9 @@ function Client:close()
   self.socket:close()
 end
 
+---@param host string
+---@param port integer
+---@return Client
 local function create_client(host, port)
   local client = { host = host, port = port }
   setmetatable(client, { __index = Client })
