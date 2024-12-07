@@ -500,6 +500,9 @@ def copy_files_to_dir(file_paths, dir_path) -> Dict[str, str]:
     file_map = {}
 
     for file_path in file_paths:
+        if not os.path.exists(file_path):
+            continue
+
         file_name = str(file_path).replace(os.path.sep, "@@").replace(" ", "_")
         dest_path = os.path.join(dir_path, file_name)
         shutil.copy2(file_path, dest_path)
