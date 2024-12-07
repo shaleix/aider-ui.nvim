@@ -296,8 +296,8 @@ class CoderServerHandler:
         modified_info = [{
             'path': file['path'],
             'abs_path': cls.coder.abs_root_path(file['path']),
-            'before_path': file['before_path'],
-            'after_path': after_tmp_map[file['path']]
+            'before_path': file.get('before_path'),
+            'after_path': after_tmp_map.get(file['path'])
         } for file in cls.change_files['files']]
         cls.running = False
         res_msg = ''
@@ -402,7 +402,7 @@ class CoderServerHandler:
             # Add file information to change_files
             cls.change_files['files'].append({
                 'path': filename,
-                'before_path': file_map[filename]
+                'before_path': file_map.get(filename)
             })
 
 
