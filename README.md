@@ -19,7 +19,7 @@ Aider UI for neovim
 ### Prerequisites
 
 - Neovim `>= 0.10.0`
-- [Aider](https://aider.chat/docs/install/install.html) `>= 0.64.0`
+- [Aider](https://aider.chat/docs/install/install.html) `>= 0.67.0`
 - [Lazy.nvim](https://github.com/folke/lazy.nvim) as your plugin manager
 
 ### Using Lazy.nvim
@@ -61,6 +61,9 @@ defaults that you can override:
     "--no-auto-commits",
     "--dark-mode",
   },
+
+  -- aider watch file cmd args, use aider_cmd_args with "--watch-files" if nil
+  aider_cmd_args_watch_files = nil,
 
   -- session save dir path
   session_save_dir = ".aider_sessions",

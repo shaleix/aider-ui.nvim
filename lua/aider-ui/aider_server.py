@@ -258,7 +258,7 @@ class CoderServerHandler:
 
     @classmethod
     def handle_process_start(cls):
-        if cls.send_chunk is not None:
+        if cls.send_chunk is not None and cls.coder is None:
             cls.send_chunk({
                 "type": cls.CHUNK_TYPE_AIDER_START,
                 "message": "aider started"
@@ -269,6 +269,7 @@ class CoderServerHandler:
         """
         before chat
         """
+        log.info("handle cmd: %s", message)
         cls.running = True
         if cls.send_chunk is not None and message:
             cls.send_chunk({
@@ -312,7 +313,7 @@ class CoderServerHandler:
                         break
             elif command in ('/ask', '/architect', '/code', '/lint'):
                 res_msg = f"{command} complete"
-        if cls.send_chunk is not None:
+        if cls.send_chunk is not None and res_msg:
             cls.send_chunk({
                 "type": cls.CHUNK_TYPE_CMD_COMPLETE,
                 "modified_info": modified_info,
@@ -469,8 +470,8 @@ def coder_create_wrapper(create_method):
             CoderServerHandler.coder = new_coder
         elif CoderServerHandler.coder is None:
             # first init coder
-            CoderServerHandler.coder = new_coder
             CoderServerHandler.handle_process_start()
+            CoderServerHandler.coder = new_coder
             CoderServerHandler.handle_cache_files()
         return new_coder
     return wrapper_create
@@ -480,11 +481,12 @@ Coder.create = coder_create_wrapper(Coder.create)
 
 class SocketServer:
 
-    def __init__(self, host, port):
+    def __init__(self, host):
         self.host = host
-        self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.bind((self.host, self.port))
+        self.server_socket.bind((self.host, 0))
+        self.port = self.server_socket.getsockname()[1]
+        print(f"aider_server_port: {self.port}")
         self.server_socket.listen(5)
 
     # sourcery skip: avoid-too-many-statements
@@ -555,12 +557,10 @@ def copy_files_to_dir(file_paths, dir_path) -> Dict[str, str]:
 
 
 if __name__ == "__main__":
-    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
-    port = int(sys.argv.pop(1))
-    log.info("server started on port %d", port)
-    server = SocketServer('127.0.0.1', port)
+    server = SocketServer('127.0.0.1')
     server_thread = threading.Thread(target=server.start)
     server_thread.daemon = True
     server_thread.start()
+    log.info("server started on port %d", server.port)
 
     aider_main()

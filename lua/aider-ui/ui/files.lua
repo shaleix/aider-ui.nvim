@@ -60,13 +60,23 @@ local function group_tree_paths(paths)
 end
 
 local function get_node_content(node, indent)
+  local NuiLine = require("nui.line")
+  local NuiText = require("nui.text")
   if node.type == "folder" then
-    return string.rep("  ", indent) .. config.icons.folder .. " " .. node.name
+    return NuiLine({
+      NuiText(string.rep("  ", indent) .. config.icons.folder .. " " .. node.name)
+    })
   elseif node.type == "file" then
-    local icon, _ = require("nvim-web-devicons").get_icon_color(node.name)
-    return string.rep("  ", indent) .. (icon or "") .. " " .. node.name
+    local icon, hl = require("nvim-web-devicons").get_icon(node.name, nil, {default = true})
+    return NuiLine({
+      NuiText(string.rep("  ", indent)),
+      NuiText(icon or "", hl),
+      NuiText(" " .. node.name),
+    })
   else
-    return string.rep("  ", indent) .. node.name
+    return NuiLine({
+      NuiText(string.rep("  ", indent) .. node.name)
+    })
   end
 end
 
@@ -87,12 +97,17 @@ end
 
 local function get_file_content(result)
   -- local cwd = vim.fn.getcwd()
+  local NuiLine = require("nui.line")
+  local NuiText = require("nui.text")
   local added, readonly = result.added, result.readonly
-  local lines = {}
+  local lines = {} -- type: nui.NuiLine[]
   local lines_path = {}
 
   local added_count = added and #added or 0
-  table.insert(lines, " Added Files (" .. added_count .. ")")
+  table.insert(lines, NuiLine({
+    NuiText(" Added Files "),
+    NuiText("(" .. added_count .. ")", "AiderComment")
+  }))
   table.insert(lines_path, {})
   if added ~= nil and #added > 0 then
     local group_paths = group_tree_paths(added)
@@ -101,13 +116,16 @@ local function get_file_content(result)
     vim.list_extend(lines_path, add_lines_path)
   end
 
-  table.insert(lines, "")
-  table.insert(lines, "")
+  table.insert(lines, NuiLine())
+  table.insert(lines, NuiLine())
   table.insert(lines_path, {})
   table.insert(lines_path, {})
 
   local readonly_count = readonly and #readonly or 0
-  table.insert(lines, " Read-only Files (" .. readonly_count .. ")")
+  table.insert(lines, NuiLine({
+    NuiText(" Read-only Files "),
+    NuiText("(" .. readonly_count .. ")", "AiderComment")
+  }))
   table.insert(lines_path, {})
   if readonly ~= nil and #readonly > 0 then
     local group_paths = group_tree_paths(readonly)
@@ -154,7 +172,10 @@ end
 function FileBuffer:update_file_content()
   self.session:list_files(function(res)
     local file_lines, lines_node = get_file_content(res)
-    vim.api.nvim_buf_set_lines(self.bufnr, 0, -1, false, file_lines)
+    for i, line in ipairs(file_lines) do
+      line:render(self.bufnr, -1, i)
+    end
+    vim.api.nvim_buf_set_lines(self.bufnr, #file_lines + 1, -1, false, {})
     self.lines_node = lines_node
   end)
 end

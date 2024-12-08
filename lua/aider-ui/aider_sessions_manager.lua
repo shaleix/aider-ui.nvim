@@ -3,17 +3,17 @@ local events = require("aider-ui.events")
 local utils = require("aider-ui.utils")
 
 local M = {
-  current_port = nil,
+  current_job_id = nil,
   sessions = {},
 }
 
 M.get_current_session_name = function()
-  if M.current_port == nil then
+  if M.current_job_id == nil then
     return nil
   end
 
   for _, session in ipairs(M.sessions) do
-    if session.port == M.current_port then
+    if session.job_id == M.current_job_id then
       return session.name
     end
   end
@@ -31,19 +31,19 @@ M.validate_new_session_name = function(name)
 end
 
 function M.current_session()
-  if M.current_port == nil then
+  if M.current_job_id == nil then
     return nil
   end
 
   for _, session in ipairs(M.sessions) do
-    if session.port == M.current_port then
+    if session.job_id == M.current_job_id then
       return session
     end
   end
   return nil
 end
 
-function M.create_session(new_session_name, on_started, cwd)
+function M.create_session(new_session_name, on_started, cwd, watch_files)
   if new_session_name == nil then
     new_session_name = "default"
   end
@@ -51,12 +51,13 @@ function M.create_session(new_session_name, on_started, cwd)
   local current_session = aider_session.create(new_session_name, bufnr, {
     on_started = on_started,
     cwd = cwd,
+    watch_files = watch_files,
     on_exit = function()
       M.delete_session(new_session_name)
     end,
   })
   table.insert(M.sessions, current_session)
-  M.current_port = current_session.port
+  M.current_job_id = current_session.job_id
   return current_session
 end
 
@@ -81,7 +82,7 @@ end
 function M.next_session()
   local current_index = nil
   for i, session in ipairs(M.sessions) do
-    if session.port == M.current_port then
+    if session.job_id == M.current_job_id then
       current_index = i
       break
     end
@@ -96,7 +97,7 @@ function M.next_session()
   local next_session = M.sessions[next_index]
 
   if next_session then
-    M.current_port = next_session.port
+    M.current_job_id = next_session.job_id
     on_session_changed()
   else
     utils.err("No more sessions to switch to.")
@@ -106,7 +107,7 @@ end
 function M.switch_session_by_name(name)
   for _, session in ipairs(M.sessions) do
     if session.name == name then
-      M.current_port = session.port
+      M.current_job_id = session.job_id
       on_session_changed()
       vim.api.nvim_exec_autocmds("User", { pattern = events.AiderSessionChanged })
       return
@@ -138,11 +139,11 @@ function M.delete_session(session_name)
   if delete_session == nil then
     return
   end
-  if M.current_port == delete_session.port then
+  if M.current_job_id == delete_session.job_id then
     if #M.sessions > 0 then
-      M.current_port = M.sessions[1].port
+      M.current_job_id = M.sessions[1].job_id
     else
-      M.current_port = nil
+      M.current_job_id = nil
     end
   end
   on_session_deleted()
@@ -152,17 +153,17 @@ function M.close_session()
   M.current_session():exit()
 
   for i, session in ipairs(M.sessions) do
-    if session.port == M.current_port then
+    if session.job_id == M.current_job_id then
       table.remove(M.sessions, i)
       break
     end
   end
 
   if #M.sessions == 0 then
-    M.current_port = nil
+    M.current_job_id = nil
   else
     local next_session = M.sessions[1]
-    M.current_port = next_session.port
+    M.current_job_id = next_session.job_id
   end
   on_session_changed()
 end
@@ -173,7 +174,7 @@ function M.list_session_status()
     table.insert(status_list, {
       name = session.name,
       processing = session.processing,
-      is_current = (session.port == M.current_port),
+      is_current = (session.job_id == M.current_job_id),
       need_confirm = session.need_confirm,
     })
   end
@@ -192,7 +193,7 @@ end
 function M.get_current_bufnr()
   local bufnr
   for _, session in ipairs(M.sessions) do
-    if session.port == M.current_port then
+    if session.job_id == M.current_job_id then
       bufnr = session.bufnr
       break
     end
