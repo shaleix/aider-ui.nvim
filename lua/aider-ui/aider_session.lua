@@ -34,6 +34,7 @@ end
 ---@return Session
 local function create(session_name, bufnr, opts)
   local cwd = opts.cwd or nil
+  local watch_files = opts.watch_files or false
   local on_exit = opts.on_exit or function() end
 
   local server = assert(vim.loop.new_tcp())
@@ -48,7 +49,13 @@ local function create(session_name, bufnr, opts)
     server_path,
     tostring(aider_port),
   }
-  for _, arg in ipairs(configs.aider_cmd_args) do
+  local aider_cmd_args
+  if watch_files then
+    aider_cmd_args = configs.aider_cmd_args_watch_files
+  else
+    aider_cmd_args = configs.aider_cmd_args
+  end
+  for _, arg in ipairs(aider_cmd_args) do
     table.insert(cmd_args, arg)
   end
   local cmd = table.concat(cmd_args, " ")
