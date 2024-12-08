@@ -124,6 +124,16 @@ M.setup = function()
     cmd_input.cmd_popup()
   end, { desc = "Show Aider command input" })
 
+  vim.api.nvim_create_user_command("AiderShowCmd", function()
+    local configs = require("aider-ui.config").options
+    local cmd_args = {"aider"}
+    for _, arg in ipairs(configs.aider_cmd_args) do
+      table.insert(cmd_args, arg)
+    end
+    local cmd = table.concat(cmd_args, " ")
+    print(cmd)
+  end, { desc = "Show Aider command" })
+
   vim.api.nvim_create_user_command("AiderSaveCurrentSession", function()
     sessions_ui.save_session()
   end, { desc = "Save the current Aider session" })
