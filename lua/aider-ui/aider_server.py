@@ -554,34 +554,6 @@ def copy_files_to_dir(file_paths, dir_path) -> Dict[str, str]:
     return file_map
 
 
-def aider_cmd(coder):
-    while True:
-        try:
-            user_message = coder.get_input()
-            output_idx = CoderServerHandler.handle_cmd_start(user_message)
-            coder.run_one(user_message, preproc=True)
-            CoderServerHandler.handle_cmd_complete(user_message,
-                                                   output_idx=output_idx)
-            coder.show_undo_hint()
-        except KeyboardInterrupt:
-            coder.keyboard_interrupt()
-        except SwitchCoder as switch:
-            CoderServerHandler.handle_cmd_complete(user_message,
-                                                   output_idx=output_idx)
-            kwargs = dict(io=coder.io, from_coder=coder)
-            kwargs.update(switch.kwargs)
-            if "show_announcements" in kwargs:
-                del kwargs["show_announcements"]
-
-            coder = Coder.create(**kwargs)
-            CoderServerHandler.coder = coder
-
-            if switch.kwargs.get("show_announcements") is not False:
-                coder.show_announcements()
-        except EOFError:
-            return
-
-
 if __name__ == "__main__":
     sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
     port = int(sys.argv.pop(1))
