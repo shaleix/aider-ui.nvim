@@ -484,7 +484,7 @@ class SocketServer:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((self.host, 0))
         self.port = self.server_socket.getsockname()[1]
-        print(f"aider_server_port: {self.port}")
+        print(f"Aider server port: {self.port}")
         self.server_socket.listen(5)
 
     # sourcery skip: avoid-too-many-statements

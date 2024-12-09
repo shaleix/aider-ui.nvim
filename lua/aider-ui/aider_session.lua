@@ -82,7 +82,7 @@ local function create(session_name, bufnr, opts)
           return
         end
         for _, line in pairs(data) do
-          local port_match = line:match("aider_server_port: (%d+)")
+          local port_match = line:match("Aider server port: (%d+)")
           if port_match then
             s.port = tonumber(port_match)
             linsten_process()
