@@ -34,39 +34,28 @@ end
 ---@return Session
 local function create(session_name, bufnr, opts)
   local cwd = opts.cwd or nil
+  local watch_files = opts.watch_files or false
   local on_exit = opts.on_exit or function() end
 
-  local server = assert(vim.loop.new_tcp())
-  assert(server:bind("127.0.0.1", 0), "Must be able to bind to ip:port")
   local python_path = configs.python_path
   local server_path = utils.dir_path .. "aider_server.py"
-  local aider_port = server:getsockname().port
-  server:close(function() end)
-  server:shutdown(function() end)
   local cmd_args = {
     python_path,
     server_path,
-    tostring(aider_port),
   }
-  for _, arg in ipairs(configs.aider_cmd_args) do
+  local aider_cmd_args
+  if watch_files then
+    aider_cmd_args = configs.aider_cmd_args_watch_files
+  else
+    aider_cmd_args = configs.aider_cmd_args
+  end
+  for _, arg in ipairs(aider_cmd_args) do
     table.insert(cmd_args, arg)
   end
   local cmd = table.concat(cmd_args, " ")
-  local job_id = vim.api.nvim_buf_call(bufnr, function()
-    local term_opts = { bufnr = bufnr }
-    if cwd then
-      term_opts.cwd = cwd
-    end
-    if on_exit then
-      term_opts.on_exit = on_exit
-    end
-    return vim.fn.termopen(cmd, term_opts)
-  end)
-
   local s = {
-    port = aider_port,
+    port = nil,
     bufnr = bufnr,
-    job_id = job_id,
     name = session_name,
     confirm_tips = nil,
     modify_history = {},
@@ -76,8 +65,7 @@ local function create(session_name, bufnr, opts)
     last_info_content_bufnr = nil,
     on_started = opts.on_started,
   }
-  setmetatable(s, { __index = Session })
-  vim.defer_fn(function()
+  local linsten_process = function()
     local client = s:get_client()
     client:connect(function(res)
       s:handle_process_status(res)
@@ -85,7 +73,32 @@ local function create(session_name, bufnr, opts)
       s:handle_process_chunk_response(res)
     end)
     client:send("process_status", {})
-  end, 1000)
+  end
+  s.job_id = vim.api.nvim_buf_call(bufnr, function()
+    local term_opts = {
+      bufnr = bufnr,
+      on_stdout = function(job_id, data, event)
+        if s.port ~= nil or data == nil then
+          return
+        end
+        for _, line in pairs(data) do
+          local port_match = line:match("aider_server_port: (%d+)")
+          if port_match then
+            s.port = tonumber(port_match)
+            linsten_process()
+          end
+        end
+      end,
+    }
+    if cwd then
+      term_opts.cwd = cwd
+    end
+    if on_exit then
+      term_opts.on_exit = on_exit
+    end
+    return vim.fn.termopen(cmd, term_opts)
+  end)
+  setmetatable(s, { __index = Session })
   return s
 end
 
@@ -101,6 +114,8 @@ end
 
 function Session:interrupt()
   vim.fn.chansend(self.job_id, vim.api.nvim_replace_termcodes("<C-c>", true, true, true))
+  self.processing = false
+  self.need_confirm = false
 end
 
 ---@param on_response? handle_res
@@ -134,6 +149,7 @@ function Session:handle_process_chunk_response(res)
     end
   elseif res.type == "confirm_ask" then
     utils.warn(res.prompt, "Aider Confirm (" .. self.name .. ")")
+    self.confirm_info = res.prompt
     self.need_confirm = true
   elseif res.type == "notify" then
     utils.info(res.message, "Aider Command Message")
@@ -142,6 +158,7 @@ function Session:handle_process_chunk_response(res)
     utils.info(res.message, "Aider Command Message")
   elseif res.type == "cmd_complete" then
     self.processing = false
+    self.need_confirm = false
     if res.message ~= nil and res.message ~= "" then
       utils.info(res.message, "Aider Command Message")
     end

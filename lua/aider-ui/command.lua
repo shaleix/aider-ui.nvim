@@ -19,6 +19,10 @@ M.setup = function()
     sessions_ui.create_session_in_working_dir()
   end, { desc = "Create Aider Session" })
 
+  vim.api.nvim_create_user_command("AiderNewWatchFilesSession", function()
+    sessions_ui.create_session_in_working_dir(nil, "watch-files", true)
+  end, { desc = "Create Aider Session with watched files" })
+
   vim.api.nvim_create_user_command("AiderSwitchModel", function()
     model.switch_model()
   end, { desc = "Switch Aider Model" })
@@ -126,7 +130,7 @@ M.setup = function()
 
   vim.api.nvim_create_user_command("AiderShowCmd", function()
     local configs = require("aider-ui.config").options
-    local cmd_args = {"aider"}
+    local cmd_args = { "aider" }
     for _, arg in ipairs(configs.aider_cmd_args) do
       table.insert(cmd_args, arg)
     end
@@ -145,6 +149,12 @@ M.setup = function()
   vim.api.nvim_create_user_command("AiderLoadSession", function()
     sessions_ui.session_loader()
   end, { desc = "Load a saved Aider session" })
+
+  vim.api.nvim_create_user_command("AiderCommentEndWithAI", function()
+    local line = vim.fn.getline(".")
+    local updated_line = line .. " . AI!"
+    vim.fn.setline(".", updated_line)
+  end, { desc = "Append ' . AI!' to the end of the current line" })
 end
 
 return M

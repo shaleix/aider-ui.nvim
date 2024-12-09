@@ -2,13 +2,11 @@
 import json
 import logging
 import os
-import re
 import shutil
 import socket
-import sys
 import tempfile
 import threading
-from typing import Dict, List, Optional, TypedDict
+from typing import Dict, List, Optional, TypedDict, Tuple
 
 from aider.coders import Coder
 from aider.commands import Commands
@@ -247,7 +245,7 @@ class CoderServerHandler:
         lines = self.coder.get_announcements()
         return lines, None
 
-    def method_process_status(self, params) -> (dict, Optional[ErrorData]):
+    def method_process_status(self, params) -> Tuple[dict, Optional[ErrorData]]:
         if self.coder is not None and self.__class__.send_chunk:
             self.__class__.send_chunk({
                 "type": self.CHUNK_TYPE_AIDER_START,
@@ -258,7 +256,7 @@ class CoderServerHandler:
 
     @classmethod
     def handle_process_start(cls):
-        if cls.send_chunk is not None:
+        if cls.send_chunk is not None and cls.coder is None:
             cls.send_chunk({
                 "type": cls.CHUNK_TYPE_AIDER_START,
                 "message": "aider started"
@@ -269,6 +267,7 @@ class CoderServerHandler:
         """
         before chat
         """
+        log.info("handle cmd: %s", message)
         cls.running = True
         if cls.send_chunk is not None and message:
             cls.send_chunk({
@@ -288,6 +287,7 @@ class CoderServerHandler:
         """
         handle chat process complete
         """
+        assert cls.coder is not None
         after_tmp_dir = tempfile.mkdtemp()
         after_tmp_map = copy_files_to_dir(
             [file['path'] for file in cls.change_files['files']],
@@ -311,7 +311,7 @@ class CoderServerHandler:
                         break
             elif command in ('/ask', '/architect', '/code', '/lint'):
                 res_msg = f"{command} complete"
-        if cls.send_chunk is not None:
+        if cls.send_chunk is not None and res_msg:
             cls.send_chunk({
                 "type": cls.CHUNK_TYPE_CMD_COMPLETE,
                 "modified_info": modified_info,
@@ -434,13 +434,57 @@ InputOutput.confirm_ask = listener(InputOutput.confirm_ask, _on_confirm_ask)
 InputOutput.write_text = listener(InputOutput.write_text, _on_write_text)
 
 
+def coder_run_one_wrapper(run_one):
+
+    def wrapper_run_one(self, user_message: str, *args, **kwargs):
+        output_idx = 0
+        try:
+            output_idx = CoderServerHandler.handle_cmd_start(user_message)
+            run_one(self, user_message, *args, **kwargs)
+            CoderServerHandler.handle_cmd_complete(user_message, output_idx=output_idx)
+        except SwitchCoder as switch:
+            if switch.kwargs:
+                switch.kwargs['switch_coder'] = True
+            else:
+                switch.kwargs = {'switch_coder': True}
+            CoderServerHandler.handle_cmd_complete(user_message, output_idx=output_idx)
+            raise switch
+    return wrapper_run_one
+
+
+Coder.run_one = coder_run_one_wrapper(Coder.run_one)
+
+
+def coder_create_wrapper(create_method):
+
+    def wrapper_create(*args, **kwargs):
+        if 'switch_coder' in kwargs:
+            switch_coder = True
+            kwargs.pop('switch_coder')
+        else:
+            switch_coder = False
+        new_coder = create_method(*args, **kwargs)
+        if switch_coder:
+            CoderServerHandler.coder = new_coder
+        elif CoderServerHandler.coder is None:
+            # first init coder
+            CoderServerHandler.handle_process_start()
+            CoderServerHandler.coder = new_coder
+            CoderServerHandler.handle_cache_files()
+        return new_coder
+    return wrapper_create
+
+Coder.create = coder_create_wrapper(Coder.create)
+
+
 class SocketServer:
 
-    def __init__(self, host, port):
+    def __init__(self, host):
         self.host = host
-        self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.bind((self.host, self.port))
+        self.server_socket.bind((self.host, 0))
+        self.port = self.server_socket.getsockname()[1]
+        print(f"aider_server_port: {self.port}")
         self.server_socket.listen(5)
 
     # sourcery skip: avoid-too-many-statements
@@ -510,46 +554,11 @@ def copy_files_to_dir(file_paths, dir_path) -> Dict[str, str]:
     return file_map
 
 
-def aider_cmd(coder):
-    while True:
-        try:
-            user_message = coder.get_input()
-            output_idx = CoderServerHandler.handle_cmd_start(user_message)
-            coder.run_one(user_message, preproc=True)
-            CoderServerHandler.handle_cmd_complete(user_message,
-                                                   output_idx=output_idx)
-            coder.show_undo_hint()
-        except KeyboardInterrupt:
-            coder.keyboard_interrupt()
-        except SwitchCoder as switch:
-            CoderServerHandler.handle_cmd_complete(user_message,
-                                                   output_idx=output_idx)
-            kwargs = dict(io=coder.io, from_coder=coder)
-            kwargs.update(switch.kwargs)
-            if "show_announcements" in kwargs:
-                del kwargs["show_announcements"]
-
-            coder = Coder.create(**kwargs)
-            CoderServerHandler.coder = coder
-
-            if switch.kwargs.get("show_announcements") is not False:
-                coder.show_announcements()
-        except EOFError:
-            return
-
-
 if __name__ == "__main__":
-    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
-    port = int(sys.argv.pop(1))
-    log.info("server started on port %d", port)
-    server = SocketServer('127.0.0.1', port)
+    server = SocketServer('127.0.0.1')
     server_thread = threading.Thread(target=server.start)
     server_thread.daemon = True
     server_thread.start()
+    log.info("server started on port %d", server.port)
 
-    coder = aider_main(return_coder=True)
-    CoderServerHandler.coder = coder
-    CoderServerHandler.handle_process_start()
-    CoderServerHandler.handle_cache_files()
-    coder.show_announcements()
-    aider_cmd(coder)
+    aider_main()

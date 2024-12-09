@@ -314,7 +314,7 @@ function M.show_session_info()
   popup:mount()
 end
 
-function M.create_session_in_working_dir(cwd)
+function M.create_session_in_working_dir(cwd, default_name, watch_files)
   local title = " Aider New Session "
   common.input("Name: ", function(session_name)
     if session_name == "" then
@@ -327,9 +327,9 @@ function M.create_session_in_working_dir(cwd)
       utils.warn("Session name already exist")
       return
     end
-    sessions.create_session(session_name, function() end, cwd)
+    sessions.create_session(session_name, function() end, cwd, watch_files)
     require("aider-ui.ui.side_split").show_aider_split()
-  end, { title = title })
+  end, { title = title, default_value = default_name })
 end
 
 return M

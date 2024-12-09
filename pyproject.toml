@@ -1,0 +1,20 @@
+[tool.basedpyright]
+include = ["src"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__"
+]
+defineConstant = { DEBUG = true }
+venvPath = "/home/shalei/workspace"
+venv = "venv"
+typeCheckingMode = "basic"
+
+reportMissingImports = "error"
+reportUnusedParameter = false
+
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
+
+executionEnvironments = [
+  { root = "lua/aider-ui" }
+]
