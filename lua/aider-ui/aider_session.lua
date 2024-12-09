@@ -149,6 +149,7 @@ function Session:handle_process_chunk_response(res)
     end
   elseif res.type == "confirm_ask" then
     utils.warn(res.prompt, "Aider Confirm (" .. self.name .. ")")
+    self.confirm_info = res.prompt
     self.need_confirm = true
   elseif res.type == "notify" then
     utils.info(res.message, "Aider Command Message")

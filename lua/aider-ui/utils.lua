@@ -21,27 +21,52 @@ end
 
 M.dir_path = string.sub(debug.getinfo(1).source, 2, string.len("/utils.lua") * -1)
 
-local function in_targets(path, target_files)
-  for _, file in ipairs(target_files) do
-    if string.find(path, file) then
+local function in_target_file_names(file_name, target_file_names)
+  if file_name == "" then
+    return false
+  end
+  for _, target_file_name in ipairs(target_file_names) do
+    if file_name == target_file_name then
       return true
     end
   end
   return false
 end
 
+local function reload_buf_if_available(bufnr)
+  local buf_mode = vim.api.nvim_get_option_value("modified", { buf = bufnr })
+  if buf_mode then
+    return
+  end
+
+  local current_bufnr = vim.api.nvim_get_current_buf()
+  if current_bufnr ~= bufnr then
+    vim.api.nvim_buf_call(bufnr, function()
+      vim.cmd("e")
+    end)
+    return
+  end
+
+  vim.api.nvim_buf_call(bufnr, function()
+    local win_mode = vim.api.nvim_get_mode().mode
+    if win_mode == "n" then
+      vim.cmd("e")
+    end
+  end)
+end
+
 M.reload_buffers = function(target_files)
+  local target_file_names = {}
   local buffers = vim.api.nvim_list_bufs()
+  for _, path in ipairs(target_files) do
+    local file_name = path:match("([^/\\]+)$")
+    table.insert(target_file_names, file_name)
+  end
   for _, bufnr in ipairs(buffers) do
     local path = vim.api.nvim_buf_get_name(bufnr)
-    if in_targets(path, target_files) then
-      local buf_mode = vim.api.nvim_get_option_value("modified", { buf = bufnr })
-      local win_mode = vim.api.nvim_get_mode().mode
-      if win_mode == "n" and not buf_mode then
-        vim.api.nvim_buf_call(bufnr, function()
-          vim.cmd("e")
-        end)
-      end
+    local file_name = path:match("([^/\\]+)$")
+    if in_target_file_names(file_name, target_file_names) then
+      reload_buf_if_available(bufnr)
     end
   end
 end
