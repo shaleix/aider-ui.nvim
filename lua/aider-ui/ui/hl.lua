@@ -7,6 +7,7 @@ M.colors = {
   Error = "DiagnosticError",
   Warning = "DiagnosticWarn",
   Info = "DiagnosticInfo",
+  Folder = "DiagnosticWarn"
 }
 
 M.did_setup = false

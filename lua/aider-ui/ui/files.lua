@@ -64,7 +64,9 @@ local function get_node_content(node, indent)
   local NuiText = require("nui.text")
   if node.type == "folder" then
     return NuiLine({
-      NuiText(string.rep("  ", indent) .. config.icons.folder .. " " .. node.name)
+      NuiText(string.rep("  ", indent)),
+      NuiText(config.icons.folder, "AiderFolder"),
+      NuiText(" " .. node.name)
     })
   elseif node.type == "file" then
     local icon, hl = require("nvim-web-devicons").get_icon(node.name, nil, {default = true})
