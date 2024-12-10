@@ -287,6 +287,7 @@ class CoderServerHandler:
         """
         handle chat process complete
         """
+        log.info("handle_cmd_complete: %s, output_idx: %s", message, output_idx)
         assert cls.coder is not None
         after_tmp_dir = tempfile.mkdtemp()
         after_tmp_map = copy_files_to_dir(
