@@ -6,6 +6,7 @@ import shutil
 import socket
 import tempfile
 import threading
+import traceback
 from typing import Dict, List, Optional, TypedDict, Tuple
 
 from aider.coders import Coder
@@ -265,18 +266,16 @@ class CoderServerHandler:
     @classmethod
     def handle_cmd_start(cls, message: str = None) -> int:
         """
-        before chat
+        Before chat
         """
         log.info("handle cmd: %s", message)
         cls.running = True
         if cls.send_chunk is not None and message:
             cls.send_chunk({
-                "type":
-                cls.CHUNK_TYPE_CMD_START,
-                "message":
-                f"{cls._get_cmd_from_message(message)} start"
+                "type": cls.CHUNK_TYPE_CMD_START,
+                "message": f"{cls._get_cmd_from_message(message)} start"
             })
-        # 创建临时目录并记录在 change_files 中，同时清空 file_paths
+        # Create a temporary directory and record it in change_files, and clear file_paths
         temp_dir = tempfile.mkdtemp()
         cls.change_files["before_tmp_dir"] = temp_dir
         cls.change_files["files"].clear()
@@ -312,7 +311,9 @@ class CoderServerHandler:
                         break
             elif command in ('/ask', '/architect', '/code', '/lint'):
                 res_msg = f"{command} complete"
-        if cls.send_chunk is not None and res_msg:
+            else:
+                res_msg = 'complete'
+        if cls.send_chunk is not None:
             cls.send_chunk({
                 "type": cls.CHUNK_TYPE_CMD_COMPLETE,
                 "modified_info": modified_info,
@@ -438,7 +439,14 @@ InputOutput.write_text = listener(InputOutput.write_text, _on_write_text)
 def coder_run_one_wrapper(run_one):
 
     def wrapper_run_one(self, user_message: str, *args, **kwargs):
-        output_idx = 0
+        # Get the current stack information
+        stack = traceback.extract_stack()
+        run_one_count = sum(1 for frame in stack if frame.name == 'run_one')
+        
+        # If run_one is called more than once, skip the following actions
+        if run_one_count > 1:
+            return run_one(self, user_message, *args, **kwargs)
+
         try:
             output_idx = CoderServerHandler.handle_cmd_start(user_message)
             run_one(self, user_message, *args, **kwargs)
