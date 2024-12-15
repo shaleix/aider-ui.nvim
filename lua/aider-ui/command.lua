@@ -138,6 +138,11 @@ M.setup = function()
     print(cmd)
   end, { desc = "Show Aider command" })
 
+  vim.api.nvim_create_user_command("AiderDiagnostic", function()
+    local diagnostic = require("aider-ui.ui.diagnostic")
+    diagnostic.open_float()
+  end, { desc = "Show diagnostics in a floating window" })
+
   vim.api.nvim_create_user_command("AiderSaveCurrentSession", function()
     sessions_ui.save_session()
   end, { desc = "Save the current Aider session" })
