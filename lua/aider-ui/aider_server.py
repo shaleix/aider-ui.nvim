@@ -45,6 +45,7 @@ class CoderServerHandler:
         "before_tmp_dir": "",
         "files": []  # [{'path': path, 'before_path': path_tmp_map.get(path) }]
     }
+    lock = threading.Lock()  # 添加锁
 
     CHUNK_TYPE_AIDER_START = "aider_start"
     CHUNK_TYPE_NOTIFY = "notify"
@@ -320,6 +321,13 @@ class CoderServerHandler:
                 "message": res_msg
             })
         cls.handle_cache_files()
+
+    @classmethod
+    def notify_process_status(cls, data):
+        if cls.send_chunk is None:
+            return
+        with cls.lock:  # 使用锁
+            cls.send_chunk(data)
 
     @classmethod
     def handle_cache_files(cls):
