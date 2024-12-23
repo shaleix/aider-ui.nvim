@@ -177,7 +177,7 @@ function FileBuffer:update_file_content()
     for i, line in ipairs(file_lines) do
       line:render(self.bufnr, -1, i)
     end
-    vim.api.nvim_buf_set_lines(self.bufnr, #file_lines + 1, -1, false, {})
+    vim.api.nvim_buf_set_lines(self.bufnr, #file_lines, -1, false, {})
     self.lines_node = lines_node
   end)
 end
