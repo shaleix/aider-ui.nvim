@@ -248,8 +248,8 @@ class CoderServerHandler:
         return lines, None
 
     def method_process_status(self, params) -> Tuple[dict, Optional[ErrorData]]:
-        if self.coder is not None and self.__class__.send_chunk:
-            self.__class__.send_chunk({
+        if self.coder is not None:
+            self.notify_process_status({
                 "type": self.CHUNK_TYPE_AIDER_START,
                 "message": "aider started"
             })
@@ -272,7 +272,7 @@ class CoderServerHandler:
         log.info("handle cmd: %s", message)
         cls.running = True
         if cls.send_chunk is not None and message:
-            cls.send_chunk({
+            cls.notify_process_status({
                 "type": cls.CHUNK_TYPE_CMD_START,
                 "message": f"{cls._get_cmd_from_message(message)} start"
             })
@@ -287,7 +287,7 @@ class CoderServerHandler:
         """
         handle chat process complete
         """
-        log.info("handle_cmd_complete: %s, output_idx: %s", message, output_idx)
+        log.info("handle_cmd_complete: %s, output_idx: %s", message, output_idx, stack_info=True)
         assert cls.coder is not None
         after_tmp_dir = tempfile.mkdtemp()
         after_tmp_map = copy_files_to_dir(
@@ -315,7 +315,7 @@ class CoderServerHandler:
             else:
                 res_msg = 'complete'
         if cls.send_chunk is not None:
-            cls.send_chunk({
+            cls.notify_process_status({
                 "type": cls.CHUNK_TYPE_CMD_COMPLETE,
                 "modified_info": modified_info,
                 "message": res_msg
@@ -449,7 +449,7 @@ def coder_run_one_wrapper(run_one):
     def wrapper_run_one(self, user_message: str, *args, **kwargs):
         # Get the current stack information
         stack = traceback.extract_stack()
-        run_one_count = sum(1 for frame in stack if frame.name == 'run_one')
+        run_one_count = sum(1 for frame in stack if frame.name.endswith('run_one'))
         
         # If run_one is called more than once, skip the following actions
         if run_one_count > 1:

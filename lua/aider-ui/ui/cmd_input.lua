@@ -83,13 +83,9 @@ M.cmd_popup = function()
     end
   end
 
-  local on_input_submit = function()
-    session:send_cmd(current_value)
-    vim.api.nvim_input("<Esc>^lld$a")
-  end
   local normal_submit = function()
     session:send_cmd(current_value)
-    vim.api.nvim_input("^lld$a")
+    handle_quite()
   end
 
   bottom_input:map("n", "q", handle_quite, mapOpts)
@@ -98,7 +94,7 @@ M.cmd_popup = function()
   bottom_input:map("n", "<Esc>", handle_quite, mapOpts)
   bottom_input:map("i", "<C-q>", handle_quite, mapOpts)
   bottom_input:map("n", "<C-q>", handle_quite, mapOpts)
-  bottom_input:map("i", "<Enter>", on_input_submit, mapOpts)
+  bottom_input:map("i", "<Enter>", normal_submit, mapOpts)
   bottom_input:map("n", "<Enter>", normal_submit, mapOpts)
 
   original_winid = vim.api.nvim_get_current_win()
