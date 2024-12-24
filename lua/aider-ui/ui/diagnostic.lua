@@ -1,6 +1,26 @@
 local M = {}
 local api, if_nil = vim.api, vim.F.if_nil
 
+--return example: { {
+--     _tags = {
+--       unnecessary = true
+--     },
+--     bufnr = 2,
+--     code = "unused-local",
+--     col = 8,
+--     end_col = 17,
+--     end_lnum = 17,
+--     lnum = 17,
+--     message = "Unused local `telescope`.",
+--     namespace = 59,
+--     severity = 4,
+--     source = "Lua Diagnostics.",
+--     user_data = {
+--       lsp = {
+--         code = "unused-local"
+--       }
+--     }
+--   } }
 local function get_diagnostics_for_scope(bufnr, lnum)
   local diagnostics = vim.diagnostic.get(bufnr)
 
@@ -15,7 +35,6 @@ end
 
 function M.diagnostic(opts)
   local scope = if_nil(opts and opts.scope, "buffer")
-  local telescope = require("telescope.builtin")
   local pickers = require("telescope.pickers")
 
   local lnum = nil
@@ -24,51 +43,93 @@ function M.diagnostic(opts)
   end
   local bufnr = vim.api.nvim_get_current_buf()
   local diagnostics = get_diagnostics_for_scope(bufnr, lnum)
+  for idx, diagnostic in ipairs(diagnostics) do
+    diagnostic.idx = idx
+  end
+  local added_items = {}
+  local entry_maker = function(diagnostic)
+    local prefix = added_items[diagnostic.idx] and "+" or ""
+    return {
+      value = diagnostic.idx,
+      ordinal = diagnostic.idx,
+      display = prefix .. vim.split(diagnostic.message, "\n")[1],
+    }
+  end
 
   -- 使用 Telescope 显示诊断信息
   if #diagnostics > 0 then
     local previewer = require("telescope.previewers").new_buffer_previewer({
       define_preview = function(self, entry, status)
-        -- local session = session_map[entry.value]
-        -- if session then
-        --   session:list_files(function(result)
-        --     local lines = session:get_file_content(result)
-        --     if lines == nil then
-        --       return
-        --     end
-        --     vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
-        --   end)
-        -- end
+        for _, diagnostic in ipairs(diagnostics) do
+          if diagnostic.idx == entry.value then
+            local message = diagnostic.message
+            local lines = vim.split(message, "\n")
+            vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
+            return
+          end
+        end
       end,
     })
 
     pickers
       .new({}, {
         prompt_title = "Send diagnostics to Aider",
+        layout_strategy = "vertical",
         layout_config = {
-          width = 120,
-          height = 35,
+          width = 0.6,
+          height = 0.7,
+          preview_cutoff = 1,
+          preview_height = function(_, _, max_lines)
+            local h = math.floor(max_lines * 0.2)
+            return math.max(h, 10)
+          end,
         },
         finder = require("telescope.finders").new_table({
           results = diagnostics,
-          entry_maker = function(session)
-            return {
-              value = session.message,
-              ordinal = session.message,
-              display = session.message,
-            }
-          end,
+          entry_maker = entry_maker,
         }),
         previewer = previewer,
         sorter = require("telescope.config").values.generic_sorter({}),
         attach_mappings = function(prompt_bufnr, map)
           map("i", "<C-a>", function()
             local item = require("telescope.actions.state").get_selected_entry()
-            print(item)
+            table.insert(added_items, item.value)
+            -- Refresh the Telescope entries
+            local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
+            picker:refresh(
+              require("telescope.finders").new_table({
+                results = diagnostics,
+                entry_maker = entry_maker,
+              }),
+              { reset_prompt = true }
+            )
           end)
           map("i", "<C-d>", function()
             local item = require("telescope.actions.state").get_selected_entry()
-            print(item)
+            for i, v in ipairs(added_items) do
+              if v == item.value then
+                table.remove(added_items, i)
+                break
+              end
+            end
+            -- Refresh the Telescope entries
+            local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
+            picker:refresh(
+              require("telescope.finders").new_table({
+                results = diagnostics,
+                entry_maker = entry_maker,
+              }),
+              { reset_prompt = true }
+            )
+          end)
+          map("i", "<CR>", function()
+            for _, v in ipairs(added_items) do
+              for _, diagnostic in ipairs(diagnostics) do
+                if diagnostic.idx == v then
+                  print(vim.inspect(diagnostic))
+                end
+              end
+            end
           end)
           return true
         end,
