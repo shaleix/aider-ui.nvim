@@ -419,6 +419,22 @@ function Session:model(model_name)
   self:send_cmd("/model " .. model_name)
 end
 
+---@param diagnostics table[] List of file diagnostics
+---@param on_response? handle_res
+function Session:fix_diagnostic(diagnostics, on_response)
+  local client = self:get_client()
+  client:connect(function(res, method, params)
+    if res.error and res.error ~= nil then
+      utils.err(vim.inspect(res.error), "fix_diagnostic error (Aider)")
+    else
+      if on_response ~= nil then
+        on_response(res.result)
+      end
+    end
+  end)
+  client:send("fix_diagnostic", diagnostics)
+end
+
 return {
   create = create,
 }

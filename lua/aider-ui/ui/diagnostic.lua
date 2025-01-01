@@ -1,7 +1,9 @@
 local M = {}
 local api, if_nil = vim.api, vim.F.if_nil
+local sessions = require("aider-ui.aider_sessions_manager")
+local utils = require("aider-ui.utils")
 
---return example: { {
+--diagnostic: {
 --     _tags = {
 --       unnecessary = true
 --     },
@@ -20,7 +22,7 @@ local api, if_nil = vim.api, vim.F.if_nil
 --         code = "unused-local"
 --       }
 --     }
---   } }
+--   } 
 local function get_diagnostics_for_scope(bufnr, lnum)
   local diagnostics = vim.diagnostic.get(bufnr)
 
@@ -31,6 +33,58 @@ local function get_diagnostics_for_scope(bufnr, lnum)
   end
 
   return diagnostics
+end
+
+local function fix_diagnostics(diagnostics)
+  local session = sessions.current_session()
+  if session == nil then
+    utils.err("No active session.")
+    return
+  end
+
+  -- Group diagnostics by file
+  local file_diagnostics = {}
+  for _, diagnostic in ipairs(diagnostics) do
+    local fname = vim.api.nvim_buf_get_name(diagnostic.bufnr)
+    if not file_diagnostics[fname] then
+      file_diagnostics[fname] = {
+        fname = fname,
+        diagnostics = {},
+        lines = {} -- Track unique line numbers
+      }
+    end
+
+    -- Add diagnostic
+    table.insert(file_diagnostics[fname].diagnostics, {
+      code = diagnostic.code,
+      lnum = diagnostic.lnum,
+      end_lnum = diagnostic.end_lnum,
+      message = diagnostic.message
+    })
+    -- Track line numbers for context
+    for lnum = diagnostic.lnum, diagnostic.end_lnum do
+      file_diagnostics[fname].lines[lnum] = true
+    end
+  end
+
+  -- Convert to list format and prepare lines
+  local diagnostics_list = {}
+  for _, file in pairs(file_diagnostics) do
+    -- Convert lines table to sorted list
+    local lines = {}
+    for lnum in pairs(file.lines) do
+      table.insert(lines, lnum)
+    end
+    table.sort(lines)
+    table.insert(diagnostics_list, {
+      fname = file.fname,
+      diagnostics = file.diagnostics,
+      lines = lines
+    })
+  end
+
+  -- Send to session
+  session:fix_diagnostic(diagnostics_list)
 end
 
 function M.diagnostic(opts)
@@ -48,7 +102,7 @@ function M.diagnostic(opts)
   end
   local added_items = {}
   local entry_maker = function(diagnostic)
-    local prefix = added_items[diagnostic.idx] and "+" or ""
+    local prefix = added_items[diagnostic.idx] and "  " or "   "
     return {
       value = diagnostic.idx,
       ordinal = diagnostic.idx,
@@ -123,13 +177,16 @@ function M.diagnostic(opts)
             )
           end)
           map("i", "<CR>", function()
+            local added_diagnostics = {}
             for _, v in ipairs(added_items) do
               for _, diagnostic in ipairs(diagnostics) do
                 if diagnostic.idx == v then
-                  print(vim.inspect(diagnostic))
+                  table.insert(added_diagnostics, diagnostic)
                 end
               end
             end
+            fix_diagnostics(added_diagnostics)
+            require("telescope.actions").close(prompt_bufnr)
           end)
           return true
         end,
