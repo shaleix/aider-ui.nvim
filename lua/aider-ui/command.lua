@@ -141,7 +141,12 @@ M.setup = function()
   vim.api.nvim_create_user_command("AiderDiagnosticLine", function()
     local diagnostic = require("aider-ui.ui.diagnostic")
     diagnostic.diagnostic({scope = 'line'})
-  end, { desc = "send diagnostic to aider" })
+  end, { desc = "send line diagnostic to aider" })
+
+  vim.api.nvim_create_user_command("AiderDiagnosticBuffer", function()
+    local diagnostic = require("aider-ui.ui.diagnostic")
+    diagnostic.diagnostic({scope = 'buffer'})
+  end, { desc = "send buffer diagnostic to aider" })
 
   vim.api.nvim_create_user_command("AiderSaveCurrentSession", function()
     sessions_ui.save_session()

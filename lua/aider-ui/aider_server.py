@@ -76,6 +76,7 @@ class CoderServerHandler:
         "before_tmp_dir": "",
         "files": []  # [{'path': path, 'before_path': path_tmp_map.get(path) }]
     }
+    diagnostics: List[FileDiagnostics] = []
     lock = threading.Lock()  # 添加锁
 
     CHUNK_TYPE_AIDER_START = "aider_start"
@@ -292,16 +293,25 @@ class CoderServerHandler:
             raise
         if not params:
             return '', None
-        lint_coder = self.coder.clone(
+        self.__class__.diagnostics = params
+        return "", None
+
+    @classmethod
+    def handle_fix_diagnostic(cls):
+        if not cls.coder:
+            raise
+        if not cls.diagnostics:
+            return
+        lint_coder = cls.coder.clone(
             # Clear the chat history, fnames
             cur_messages=[],
             done_messages=[],
             fnames=None,
         )
-        linter = self.coder.linter
-        self.__class__.running = False
-        self.handle_process_start()
-        for item in params:
+        linter = cls.coder.linter
+        cls.running = False
+        cls.handle_process_start()
+        for item in cls.diagnostics:
             fname = item['fname']
             rel_fname = linter.get_rel_fname(fname)
             lines = set()
@@ -319,13 +329,12 @@ class CoderServerHandler:
                 lines.update(range(lnum, end_lnum + 1))
             res += tree_context(rel_fname, file_content, lines)
 
-            self.coder.io.tool_output(res)
+            cls.coder.io.tool_output(res)
             lint_coder.add_rel_fname(fname)
             lint_coder.run(res)
             lint_coder.abs_fnames = set()
-        self.__class__.running = False
-        self.handle_cmd_complete('fix-diagnostic')
-        return 'complete', None
+        cls.running = False
+        cls.handle_cmd_complete('fix-diagnostic')
 
     @classmethod
     def handle_process_start(cls):
@@ -528,7 +537,10 @@ def coder_run_one_wrapper(run_one):
 
         try:
             output_idx = CoderServerHandler.handle_cmd_start(user_message)
-            run_one(self, user_message, *args, **kwargs)
+            if user_message == 'fix-diagnostics':
+                CoderServerHandler.handle_fix_diagnostic()
+            else:
+                run_one(self, user_message, *args, **kwargs)
             CoderServerHandler.handle_cmd_complete(user_message, output_idx=output_idx)
         except SwitchCoder as switch:
             if switch.kwargs:

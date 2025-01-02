@@ -420,16 +420,17 @@ function Session:model(model_name)
 end
 
 ---@param diagnostics table[] List of file diagnostics
----@param on_response? handle_res
-function Session:fix_diagnostic(diagnostics, on_response)
+function Session:fix_diagnostic(diagnostics)
+  if self.processing then
+    utils.warn("Aider is currently processing another command")
+    return
+  end
   local client = self:get_client()
   client:connect(function(res, method, params)
     if res.error and res.error ~= nil then
       utils.err(vim.inspect(res.error), "fix_diagnostic error (Aider)")
     else
-      if on_response ~= nil then
-        on_response(res.result)
-      end
+      self:send_cmd('fix-diagnostics')
     end
   end)
   client:send("fix_diagnostic", diagnostics)

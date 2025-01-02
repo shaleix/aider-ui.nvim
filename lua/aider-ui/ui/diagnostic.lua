@@ -1,5 +1,5 @@
 local M = {}
-local api, if_nil = vim.api, vim.F.if_nil
+local if_nil = vim.F.if_nil
 local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
 
