@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+from pathlib import Path
 import shutil
 import socket
 import tempfile
@@ -12,6 +13,7 @@ from typing import Dict, List, Optional, TypedDict, Tuple
 from aider.coders import Coder
 from aider.commands import Commands
 from aider.io import InputOutput
+from aider.linter import tree_context
 from aider.llm import litellm
 from aider.main import SwitchCoder
 from aider.main import main as aider_main
@@ -30,6 +32,35 @@ CHUNK_END = b"\t\n\t\n"
 class ErrorData(TypedDict):
     code: int
     message: str
+
+
+# {
+#      code = "unused-local",
+#      col = 8,
+#      lnum = 17,
+#      end_col = 17,
+#      end_lnum = 17,
+#      message = "Unused local `telescope`.",
+#      namespace = 59,
+#      severity = 4,
+#      source = "Lua Diagnostics.",
+#      user_data = {
+#        lsp = {
+#          code = "unused-local"
+#        }
+#      }
+#    } }
+class Diagnostic(TypedDict):
+    code: str
+    lnum: int
+    col: int
+    end_lnum: int
+    message: str
+
+
+class FileDiagnostics(TypedDict):
+    fname: str
+    diagnostics: List[Diagnostic]
 
 
 class CoderServerHandler:
@@ -254,7 +285,47 @@ class CoderServerHandler:
                 "message": "aider started"
             })
         self.exit_event.wait()
-        return "exit", None
+        return {"message": "exit"}, None
+
+    def method_fix_diagnostic(self, params: List[FileDiagnostics]):
+        if not self.coder:
+            raise
+        if not params:
+            return '', None
+        lint_coder = self.coder.clone(
+            # Clear the chat history, fnames
+            cur_messages=[],
+            done_messages=[],
+            fnames=None,
+        )
+        linter = self.coder.linter
+        self.__class__.running = False
+        self.handle_process_start()
+        for item in params:
+            fname = item['fname']
+            rel_fname = linter.get_rel_fname(fname)
+            lines = set()
+            try:
+                file_content = Path(fname).read_text(encoding=linter.encoding, errors="replace")
+            except OSError as err:
+                print(f"Unable to read {fname}: {err}")
+            res = "# Fix any errors below, if possible.\n\n"
+            for diagnostic in item['diagnostics']:
+                code, message = diagnostic.get('code'), diagnostic.get('message')
+                lnum, col = diagnostic.get('lnum'), diagnostic.get('col')
+                end_lnum = diagnostic.get('end_lnum')
+                res += f"{fname}:{lnum}:{col}: {code}: {message}\n"
+                res += "\n"
+                lines.update(range(lnum, end_lnum + 1))
+            res += tree_context(rel_fname, file_content, lines)
+
+            self.coder.io.tool_output(res)
+            lint_coder.add_rel_fname(fname)
+            lint_coder.run(res)
+            lint_coder.abs_fnames = set()
+        self.__class__.running = False
+        self.handle_cmd_complete('fix-diagnostic')
+        return 'complete', None
 
     @classmethod
     def handle_process_start(cls):
@@ -265,7 +336,7 @@ class CoderServerHandler:
             })
 
     @classmethod
-    def handle_cmd_start(cls, message: str = None) -> int:
+    def handle_cmd_start(cls, message: Optional[str] = None) -> int:
         """
         Before chat
         """
@@ -283,7 +354,7 @@ class CoderServerHandler:
         return len(cls.output_history)
 
     @classmethod
-    def handle_cmd_complete(cls, message: str = None, output_idx: int = None):
+    def handle_cmd_complete(cls, message: Optional[str] = None, output_idx: Optional[int] = None):
         """
         handle chat process complete
         """
@@ -564,7 +635,7 @@ def copy_files_to_dir(file_paths, dir_path) -> Dict[str, str]:
         if not os.path.exists(file_path):
             continue
 
-        file_name = str(file_path).replace(os.path.sep, "@@").replace(" ", "_")
+        file_name = str(file_path).replace(str(os.path.sep), "@@").replace(" ", "_")
         dest_path = os.path.join(dir_path, file_name)
         shutil.copy2(file_path, dest_path)
         file_map[file_path] = dest_path
