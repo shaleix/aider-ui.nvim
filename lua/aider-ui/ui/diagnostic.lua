@@ -97,16 +97,18 @@ function M.diagnostic(opts)
   end
   local bufnr = vim.api.nvim_get_current_buf()
   local diagnostics = get_diagnostics_for_scope(bufnr, lnum)
+  local added_items = {}
   for idx, diagnostic in ipairs(diagnostics) do
     diagnostic.idx = idx
+    table.insert(added_items, false)
   end
-  local added_items = {}
   local entry_maker = function(diagnostic)
     local prefix = added_items[diagnostic.idx] and "  " or "   "
+    local message = vim.split(diagnostic.message, "\n")[1]
     return {
       value = diagnostic.idx,
-      ordinal = diagnostic.idx,
-      display = prefix .. vim.split(diagnostic.message, "\n")[1],
+      ordinal = message,
+      display = prefix .. message,
     }
   end
 
@@ -147,25 +149,20 @@ function M.diagnostic(opts)
         attach_mappings = function(prompt_bufnr, map)
           map("i", "<C-a>", function()
             local item = require("telescope.actions.state").get_selected_entry()
-            table.insert(added_items, item.value)
-            -- Refresh the Telescope entries
+            added_items[item.value] = true
+            -- Refresh the current entry display
             local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
             picker:refresh(
               require("telescope.finders").new_table({
                 results = diagnostics,
                 entry_maker = entry_maker,
               }),
-              { reset_prompt = true }
+              { reset_prompt = false }
             )
           end)
           map("i", "<C-d>", function()
             local item = require("telescope.actions.state").get_selected_entry()
-            for i, v in ipairs(added_items) do
-              if v == item.value then
-                table.remove(added_items, i)
-                break
-              end
-            end
+            added_items[item.value] = false
             -- Refresh the Telescope entries
             local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
             picker:refresh(
@@ -173,16 +170,14 @@ function M.diagnostic(opts)
                 results = diagnostics,
                 entry_maker = entry_maker,
               }),
-              { reset_prompt = true }
+              { reset_prompt = false }
             )
           end)
           map("i", "<CR>", function()
             local added_diagnostics = {}
-            for _, v in ipairs(added_items) do
-              for _, diagnostic in ipairs(diagnostics) do
-                if diagnostic.idx == v then
-                  table.insert(added_diagnostics, diagnostic)
-                end
+            for idx, diagnostic in ipairs(diagnostics) do
+              if added_items[idx] then
+                table.insert(added_diagnostics, diagnostic)
               end
             end
             fix_diagnostics(added_diagnostics)
