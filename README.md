@@ -20,7 +20,7 @@ A Neovim UI plugin for Aider
 ### Prerequisites
 
 - Neovim `>= 0.10.0`
-- [Aider](https://aider.chat/docs/install/install.html) `>= 0.67.0`
+- [Aider](https://aider.chat/docs/install.html) `>= 0.67.0`
 - [Lazy.nvim](https://github.com/folke/lazy.nvim) plugin manager
 
 ### Using Lazy.nvim

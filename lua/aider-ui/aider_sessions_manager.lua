@@ -43,10 +43,47 @@ function M.current_session()
   return nil
 end
 
+---@param path1 string|nil
+---@param path2 string|nil
+---@return boolean
+local function is_path_conflict(path1, path2)
+  if not path1 or not path2 then
+    return true
+  end
+  if path1 == "." or path2 == "." then
+    return true
+  end
+  path1 = vim.fn.fnamemodify(path1, ":p")
+  path2 = vim.fn.fnamemodify(path2, ":p")
+  return path1:find(path2, 1, true) == 1 or path2:find(path1, 1, true) == 1
+end
+
+---@param new_session_name string
+---@param on_started function
+---@param watch_files boolean
+---@return Session|nil
 function M.create_session(new_session_name, on_started, cwd, watch_files)
   if new_session_name == nil then
     new_session_name = "default"
   end
+  local is_valid = M.validate_new_session_name(new_session_name)
+  if not is_valid then
+    utils.warn("Session name already exist")
+    return
+  end
+
+  if watch_files then
+    for _, session in ipairs(M.sessions) do
+      if session.watch_files and is_path_conflict(session.dir, cwd or '.') then
+        utils.warn(string.format(
+          "Cannot create session: watch_files conflict between '%s' (%s) and new session '%s' (%s)",
+          session.name, session.dir or ".", new_session_name, cwd or "."
+        ))
+        return
+      end
+    end
+  end
+
   local bufnr = vim.api.nvim_create_buf(false, false)
   local current_session = aider_session.create(new_session_name, bufnr, {
     on_started = on_started,

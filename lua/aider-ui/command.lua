@@ -165,6 +165,18 @@ M.setup = function()
     local updated_line = line .. " . AI!"
     vim.fn.setline(".", updated_line)
   end, { desc = "Append ' . AI!' to the end of the current line" })
+
+  vim.api.nvim_create_user_command("AiderNewWatchSessionInCurrentDir", function()
+    local buffer_path = vim.fn.expand("%:p")
+    if buffer_path == "" then
+      utils.err("Current buffer has no file path")
+      return
+    end
+    local dir_path = vim.fn.fnamemodify(buffer_path, ":h")
+    local dir_name = vim.fn.fnamemodify(dir_path, ":t")
+    local session_name = "w:" .. dir_name
+    sessions_ui.create_session_in_working_dir(dir_path, session_name, true)
+  end, { desc = "Create new watch files session in current file's directory" })
 end
 
 return M

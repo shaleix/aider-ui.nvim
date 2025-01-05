@@ -8,6 +8,8 @@ local configs = require("aider-ui.config").options
 ---@field name string
 ---@field job_id number
 ---@field port number
+---@field dir string|nil
+---@field watch_files boolean
 ---@field on_started function|nil
 ---@field modify_history table
 ---@field bufnr number
@@ -64,6 +66,8 @@ local function create(session_name, bufnr, opts)
     last_file_content_bufnr = nil,
     last_info_content_bufnr = nil,
     on_started = opts.on_started,
+    dir = cwd or '.',
+    watch_files = watch_files,
   }
   local linsten_process = function()
     local client = s:get_client()
@@ -430,7 +434,7 @@ function Session:fix_diagnostic(diagnostics)
     if res.error and res.error ~= nil then
       utils.err(vim.inspect(res.error), "fix_diagnostic error (Aider)")
     else
-      self:send_cmd('fix-diagnostics')
+      self:send_cmd("fix-diagnostics")
     end
   end)
   client:send("fix_diagnostic", diagnostics)

@@ -321,12 +321,6 @@ function M.create_session_in_working_dir(cwd, default_name, watch_files)
       utils.warn("Session name is required")
       return
     end
-
-    local is_valid = sessions.validate_new_session_name(session_name)
-    if not is_valid then
-      utils.warn("Session name already exist")
-      return
-    end
     sessions.create_session(session_name, function() end, cwd, watch_files)
     require("aider-ui.ui.side_split").show_aider_split()
   end, { title = title, default_value = default_name })
