@@ -2,6 +2,15 @@ local M = {}
 local if_nil = vim.F.if_nil
 local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
+local SEVERITY = vim.diagnostic.severity
+local entry_display = require "telescope.pickers.entry_display"
+
+local errlist_type_map = {
+    [SEVERITY.ERROR] = "E",
+    [SEVERITY.WARN] = "W",
+    [SEVERITY.INFO] = "I",
+    [SEVERITY.HINT] = "N",
+  }
 
 --diagnostic: {
 --     _tags = {
@@ -22,7 +31,7 @@ local utils = require("aider-ui.utils")
 --         code = "unused-local"
 --       }
 --     }
---   } 
+--   }
 local function get_diagnostics_for_scope(bufnr, lnum)
   local diagnostics = vim.diagnostic.get(bufnr)
 
@@ -50,7 +59,7 @@ local function fix_diagnostics(diagnostics)
       file_diagnostics[fname] = {
         fname = fname,
         diagnostics = {},
-        lines = {} -- Track unique line numbers
+        lines = {}, -- Track unique line numbers
       }
     end
 
@@ -59,7 +68,7 @@ local function fix_diagnostics(diagnostics)
       code = diagnostic.code,
       lnum = diagnostic.lnum,
       end_lnum = diagnostic.end_lnum,
-      message = diagnostic.message
+      message = diagnostic.message,
     })
     -- Track line numbers for context
     for lnum = diagnostic.lnum, diagnostic.end_lnum do
@@ -79,7 +88,7 @@ local function fix_diagnostics(diagnostics)
     table.insert(diagnostics_list, {
       fname = file.fname,
       diagnostics = file.diagnostics,
-      lines = lines
+      lines = lines,
     })
   end
 
@@ -97,18 +106,65 @@ function M.diagnostic(opts)
   end
   local bufnr = vim.api.nvim_get_current_buf()
   local diagnostics = get_diagnostics_for_scope(bufnr, lnum)
+
+  -- Sort diagnostics by severity (most severe first) and then by line number
+  table.sort(diagnostics, function(a, b)
+    if a.severity == b.severity then
+      return a.lnum < b.lnum
+    end
+    return a.severity < b.severity
+  end)
+
   local added_items = {}
   for idx, diagnostic in ipairs(diagnostics) do
     diagnostic.idx = idx
     table.insert(added_items, false)
   end
+  local display_items = {
+    { width = 4 },
+    { width = 7 },
+    { remaining = true },
+  }
+
+  local displayer = entry_display.create {
+    separator = "▏",
+    items = display_items,
+  }
+  local make_display = function(entry)
+    local pos = string.format("%s %s", errlist_type_map[entry.type], entry.lnum)
+    local line_info = {
+      pos,
+      "DiagnosticSign" .. SEVERITY[entry.type],
+    }
+    local prefix = added_items[entry.value] and "  " or "   "
+
+    return displayer {
+      {
+        prefix,
+        "DiagnosticSignError",
+      },
+      line_info,
+      {
+        entry.text,
+      },
+    }
+  end
+
   local entry_maker = function(diagnostic)
-    local prefix = added_items[diagnostic.idx] and "  " or "   "
     local message = vim.split(diagnostic.message, "\n")[1]
     return {
       value = diagnostic.idx,
       ordinal = message,
-      display = prefix .. message,
+      display = make_display,
+      lnum = diagnostic.lnum,
+      end_lnum = diagnostic.end_lnum,
+      col = diagnostic.col,
+      end_col = diagnostic.end_col,
+      text = message,
+      type = diagnostic.severity,
+      severity = diagnostic.severity,
+      bufnr = diagnostic.bufnr
+      -- display = prefix .. message,
     }
   end
 
@@ -116,14 +172,39 @@ function M.diagnostic(opts)
   if #diagnostics > 0 then
     local previewer = require("telescope.previewers").new_buffer_previewer({
       define_preview = function(self, entry, status)
-        for _, diagnostic in ipairs(diagnostics) do
-          if diagnostic.idx == entry.value then
-            local message = diagnostic.message
-            local lines = vim.split(message, "\n")
-            vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
-            return
-          end
+        local message = entry.text
+        local lines = vim.split(message, "\n")
+        local file_buf = entry.bufnr
+        local start_lnum = entry.lnum
+        local end_lnum = entry.end_lnum
+        -- Get code context from the original buffer
+        local code_lines = vim.api.nvim_buf_get_lines(file_buf, start_lnum, end_lnum + 1, false)
+        -- Get filetype for syntax highlighting
+        local filetype = vim.api.nvim_get_option_value("filetype", {buf=file_buf})
+        -- Combine message and code
+        local preview_lines = {}
+        table.insert(preview_lines, string.format("- Ln %d:%d ~ Ln %d:%d", start_lnum, entry.col, end_lnum, entry.end_col))
+        table.insert(preview_lines, "```"..filetype)
+        -- Add line numbers to code lines
+        for i, line in ipairs(code_lines) do
+            if i == 1 then
+                -- Add column markers for first line
+                local marker = string.rep(" ", entry.col) .. string.rep("^", entry.end_col - entry.col)
+                table.insert(preview_lines, line)
+                table.insert(preview_lines, marker)
+            else
+                table.insert(preview_lines, line)
+            end
         end
+        table.insert(preview_lines, "```")
+        table.insert(preview_lines, "")
+        vim.list_extend(preview_lines, lines)
+        table.insert(preview_lines, "")
+        table.insert(preview_lines, string.format("level: %s", SEVERITY[entry.severity]))
+        -- Write to preview buffer
+        vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, preview_lines)
+        vim.api.nvim_set_option_value('filetype', 'markdown', { buf = self.state.bufnr })
+        vim.api.nvim_set_option_value('conceallevel', 2, { win = self.state.winid })
       end,
     })
 
@@ -152,6 +233,7 @@ function M.diagnostic(opts)
             added_items[item.value] = true
             -- Refresh the current entry display
             local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
+            local row = picker:get_selection_row()
             picker:refresh(
               require("telescope.finders").new_table({
                 results = diagnostics,
@@ -159,12 +241,16 @@ function M.diagnostic(opts)
               }),
               { reset_prompt = false }
             )
+            vim.defer_fn(function()
+              picker:set_selection(row + 1)
+            end, 5)
           end)
           map("i", "<C-d>", function()
             local item = require("telescope.actions.state").get_selected_entry()
             added_items[item.value] = false
             -- Refresh the Telescope entries
             local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
+            local row = picker:get_selection_row()
             picker:refresh(
               require("telescope.finders").new_table({
                 results = diagnostics,
@@ -172,6 +258,9 @@ function M.diagnostic(opts)
               }),
               { reset_prompt = false }
             )
+            vim.defer_fn(function()
+              picker:set_selection(row)
+            end, 5)
           end)
           map("i", "<CR>", function()
             local added_diagnostics = {}
