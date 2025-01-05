@@ -1,16 +1,17 @@
 # aider-ui.nvim
 
-Aider UI for neovim
+A Neovim UI plugin for Aider
 
-> Early development, issues is welcome.
+> Early development stage - issues and feedback are welcome!
 
 ## 🚀 Features
 
-- Multiple Sessions support
-- Friendly UI for add / read files
-- Simplify multi-line input
-- Command for Sync buffer files to aider
-- Save / Load session with files
+- Multiple session support
+- Intuitive UI for adding/reading files
+- Simplified multi-line input
+- Sync buffer files to Aider
+- Fix diagnostics directly from Neovim
+- Save/Load sessions with associated files
 
 ---
 
@@ -20,7 +21,7 @@ Aider UI for neovim
 
 - Neovim `>= 0.10.0`
 - [Aider](https://aider.chat/docs/install/install.html) `>= 0.67.0`
-- [Lazy.nvim](https://github.com/folke/lazy.nvim) as your plugin manager
+- [Lazy.nvim](https://github.com/folke/lazy.nvim) plugin manager
 
 ### Using Lazy.nvim
 
@@ -29,7 +30,7 @@ return {
   "shaleix/aider-ui.nvim",
   config = function()
     require("aider-ui").setup({
-      python_path = "/path/to/python", -- python virtual env path, with aider install
+      python_path = "/path/to/python", -- Path to Python virtual environment with Aider installed
       -- -- aider command start arguments
       -- aider_cmd_args = {
       --   "--deepseek",
@@ -44,7 +45,7 @@ return {
 
 ### Default Configuration
 
-defaults that you can override:
+Default settings (can be overridden):
 
 ```lua
 {
@@ -52,7 +53,7 @@ defaults that you can override:
     folder = "",
   },
 
-  -- !!! python env python
+  -- Path to Python executable (must have Aider installed)
   python_path = "/usr/bin/python3",
 
   -- aider start command args
@@ -62,7 +63,7 @@ defaults that you can override:
     "--dark-mode",
   },
 
-  -- aider watch file cmd args, use aider_cmd_args with "--watch-files" if nil
+  -- Aider watch file command arguments (uses aider_cmd_args with "--watch-files" if nil)
   aider_cmd_args_watch_files = nil,
 
   -- session save dir path
@@ -73,73 +74,83 @@ defaults that you can override:
 ### Usage
 
 - `:AiderToggleSplit` toggle aider split and create default session
-- `:AiderSyncOpenBuffers` sync open buffers to aider, (/add current buffer file, /read others).
-- `:AiderCode` Send /code to aider with input massage
+- `:AiderSyncOpenBuffers` - Sync open buffers to Aider (add current buffer file, read others)
+- `:AiderCode` - Send `/code` command to Aider with input message
 
 ![code_input](https://github.com/shaleix/aider-ui.nvim/blob/main/asset/code_input.png)
 
-- `:AiderViewLastChange` view diff of last chat changes by aider, currently requires [delta](https://github.com/dandavison/delta) to be installed
+- `:AiderViewLastChange` - View diff of last chat changes (requires [delta](https://github.com/dandavison/delta))
 
 ![preview_change](https://github.com/shaleix/aider-ui.nvim/blob/main/asset/preview_change.png)
 
-- `:AiderNewSession` create new aider session for edit other files
+- `:AiderDiagnosticBuffer` - Fix diagnostics by sending to Aider
+
+![diagnostics](https://github.com/shaleix/aider-ui.nvim/blob/main/asset/diagnostics.png)
+
+- `:AiderNewSession` - Create new Aider session for editing other files
 
 ![new_session](https://github.com/shaleix/aider-ui.nvim/blob/main/asset/new_session.png)
 
 ## Commands
 
-Session:
-| Command | Desc |
+### Session Management
+| Command | Description |
 | ---------------------------- | ----------------------------------------------- |
-| AiderToggleSplit | toggle aider split, create session if no active |
-| AiderNewSession | Create Aider Session |
-| AiderSessionFinder | Use Telescope to select Aider session |
-| AiderSwitchNextSession | Switch next aider session |
-| AiderCloseCurrentSession | Close the current Aider session |
+| AiderToggleSplit | Toggle Aider split (creates session if none active) |
+| AiderNewSession | Create new Aider session |
+| AiderSessionFinder | Select Aider session using Telescope |
+| AiderSwitchNextSession | Switch to next Aider session |
+| AiderCloseCurrentSession | Close current Aider session |
 
-File:
-| Command | Desc |
+### File Operations
+| Command | Description |
 | ---------------------------- | ----------------------------------------------- |
 | AiderAddCurrentBuffer | Add current buffer to Aider |
 | AiderReadCurrentBuffer | Read current buffer into Aider |
 | AiderSyncOpenBuffers | Sync open buffers to Aider |
 | AiderAddFile | Add files to current Aider session |
 | AiderReadFile | Read files into current Aider session |
-| AiderReset | Reset and drop files in the current Aider session |
+| AiderReset | Reset and drop files in current Aider session |
 
-Chat:
-| Command | Desc |
+### Chat Operations
+| Command | Description |
 | ---------------------------- | ----------------------------------------------- |
 | AiderCode | Show Aider /code input |
 | AiderArchitect | Show Aider /architect input |
 | AiderAsk | Show Aider /ask input |
-| AiderCmd | Show Aider command input, maybe easy way to send Y/N to caider |
-| AiderInterruptCurrentSession | Interrupt the current Aider session |
-| AiderViewLastChange | Preview the last change in Aider |
-| AiderLintCurrentBuffer | Lint the current buffer using Aider |
+| AiderCmd | Show Aider command input (easy way to send Y/N responses) |
+| AiderInterruptCurrentSession | Interrupt current Aider session |
+| AiderViewLastChange | Preview last change in Aider |
+| AiderLintCurrentBuffer | Lint current buffer using Aider |
 
-Others:
-| Command | Desc |
+### Diagnostics
+| Command | Description |
+| ---------------------------- | ----------------------------------------------- |
+| AiderDiagnosticBuffer | Send current buffer's diagnostics to Aider |
+| AiderDiagnosticLine | Send current line's diagnostics to Aider |
+
+### Other Commands
+| Command | Description |
 | ---------------------------- | ----------------------------------------------- |
 | AiderGitCommit | Commit changes using Aider |
-| AiderSwitchModel | Switch Aider Model |
-| AiderHistory | Show Aider Input History |
-| AiderClearContext | Clear the context of the current Aider session |
-| AiderSaveCurrentSession | Save the current Aider session to file |
-| AiderLoadSession | Load a saved Aider session from select file |
+| AiderSwitchModel | Switch Aider model |
+| AiderHistory | Show Aider input history |
+| AiderClearContext | Clear context of current Aider session |
+| AiderSaveCurrentSession | Save current Aider session to file |
+| AiderLoadSession | Load saved Aider session from file |
 
 ## 🔑 Keybindings
 
-no default keybindings
+No default keybindings are provided
 
 
-## Status Bar
+## Status Bar Integration
 
-for NvChad
+Example integration with NvChad:
 
 ```lua
 -- chadrc.lua
--- example show session info, replace file content
+-- Example showing session info (replace file content)
 M.ui = {
   statusline = {
     modules = {
