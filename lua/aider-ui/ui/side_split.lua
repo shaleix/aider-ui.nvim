@@ -13,9 +13,9 @@ local function set_split_winbar(winid)
   local session_names = {}
   for _, session in ipairs(session_status) do
     if session.is_current then
-      table.insert(session_names, "%#AiderH1# 󰯭 " .. session.name .. " %*")
+      table.insert(session_names, "%#AiderH1# 󰯬 " .. session.name .. " %*")
     else
-      table.insert(session_names, "%#AiderButtonActive# 󰯭 " .. session.name .. " %*")
+      table.insert(session_names, "%#AiderButtonActive# 󰯬 " .. session.name .. " %*")
     end
   end
   local content = table.concat(session_names, " ")
