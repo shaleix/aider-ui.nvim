@@ -1,13 +1,16 @@
 local M = {}
 
 M.colors = {
+  H1 = "IncSearch",
   PromptTitle = "FloatTitle",
   Comment = "Comment",
   Normal = "NormalFloat",
   Error = "DiagnosticError",
   Warning = "DiagnosticWarn",
   Info = "DiagnosticInfo",
-  Folder = "DiagnosticWarn"
+  Folder = "DiagnosticWarn",
+  Button = "CursorLine",
+  ButtonActive = "Visual",
 }
 
 M.did_setup = false
