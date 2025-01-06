@@ -8,14 +8,21 @@ local M = {
   split = nil,
 }
 
-local function set_split_winbar(winid)
+M.update_split_winbar = function()
+  if M.split == nil then
+    return
+  end
+  local winid = M.split.winid
   local session_status = sessions.list_session_status()
   local session_names = {}
+  local session_icon = "󰭻 "
+  local running_icon = " "
   for _, session in ipairs(session_status) do
+    local icon = session.processing and running_icon or session_icon
     if session.is_current then
-      table.insert(session_names, "%#AiderH1# 󰯬 " .. session.name .. " %*")
+      table.insert(session_names, "%#AiderH1# " .. icon .. session.name .. " %*")
     else
-      table.insert(session_names, "%#AiderButtonActive# 󰯬 " .. session.name .. " %*")
+      table.insert(session_names, "%#AiderButtonActive# " .. icon .. session.name .. " %*")
     end
   end
   local content = table.concat(session_names, " ")
@@ -76,7 +83,7 @@ M.show_aider_split = function(new_session_name)
   M.split:map("n", "E", function()
     sessions.close_session()
   end, mapOpts)
-  set_split_winbar(M.split.winid)
+  M.update_split_winbar()
   return current_session
 end
 
