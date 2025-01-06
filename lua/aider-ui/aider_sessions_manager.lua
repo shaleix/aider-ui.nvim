@@ -58,9 +58,10 @@ local function is_path_conflict(path1, path2)
   return path1:find(path2, 1, true) == 1 or path2:find(path1, 1, true) == 1
 end
 
----@param new_session_name string
----@param on_started function
----@param watch_files boolean
+---@param new_session_name string | nil
+---@param on_started function | nil
+---@param cwd string | nil
+---@param watch_files boolean | nil
 ---@return Session|nil
 function M.create_session(new_session_name, on_started, cwd, watch_files)
   if new_session_name == nil then
