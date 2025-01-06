@@ -138,8 +138,16 @@ local function get_file_content(result)
   return lines, lines_path
 end
 
+---@class FileBuffer
+---@field bufnr integer
+---@field session table
+---@field lines_node table[]
 local FileBuffer = {}
 
+---Create a new FileBuffer instance
+---@param bufnr integer Buffer number
+---@param session table Aider session
+---@return FileBuffer
 function M.new_file_buffer(bufnr, session)
   local self = {}
   setmetatable(self, { __index = FileBuffer })

@@ -45,15 +45,8 @@ function M.session_finder()
   local previewer = require("telescope.previewers").new_buffer_previewer({
     define_preview = function(self, entry, status)
       local session = session_map[entry.value]
-      if session then
-        session:list_files(function(result)
-          local lines = session:get_file_content(result)
-          if lines == nil then
-            return
-          end
-          vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
-        end)
-      end
+      local file_buf = files.new_file_buffer(self.state.bufnr, session)
+      file_buf:update_file_content()
     end,
   })
 
