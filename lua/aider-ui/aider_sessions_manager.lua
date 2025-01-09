@@ -1,5 +1,4 @@
 local aider_session = require("aider-ui.aider_session")
-local events = require("aider-ui.events")
 local utils = require("aider-ui.utils")
 
 local M = {
@@ -147,7 +146,6 @@ function M.switch_session_by_name(name)
     if session.name == name then
       M.current_job_id = session.job_id
       on_session_changed()
-      vim.api.nvim_exec_autocmds("User", { pattern = events.AiderSessionChanged })
       return
     end
   end

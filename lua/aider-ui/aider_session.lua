@@ -1,6 +1,7 @@
 local rpc = require("aider-ui.rpc")
 local utils = require("aider-ui.utils")
 local configs = require("aider-ui.config").options
+local events = require("aider-ui.events")
 
 ---@alias handle_res fun(res: table)
 
@@ -66,7 +67,7 @@ local function create(session_name, bufnr, opts)
     last_file_content_bufnr = nil,
     last_info_content_bufnr = nil,
     on_started = opts.on_started,
-    dir = cwd or '.',
+    dir = cwd or ".",
     watch_files = watch_files,
   }
   local linsten_process = function()
@@ -151,6 +152,7 @@ function Session:handle_process_chunk_response(res)
     if self.on_started ~= nil then
       self.on_started()
     end
+    events.SessionStarted:emit({ session = self })
   elseif res.type == "confirm_ask" then
     utils.warn(res.prompt, "Aider Confirm (" .. self.name .. ")")
     self.confirm_info = res.prompt
@@ -159,10 +161,12 @@ function Session:handle_process_chunk_response(res)
     utils.info(res.message, "Aider Command Message")
   elseif res.type == "cmd_start" then
     self.processing = true
+    events.ChatStart:emit({ session = self })
     utils.info(res.message, "Aider Command Message")
   elseif res.type == "cmd_complete" then
     self.processing = false
     self.need_confirm = false
+    events.ChatCompleted:emit({ session = self })
     if res.message ~= nil and res.message ~= "" then
       utils.info(res.message, "Aider Command Message")
     end

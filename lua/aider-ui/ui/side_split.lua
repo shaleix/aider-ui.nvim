@@ -1,6 +1,7 @@
 local common = require("aider-ui.ui.common")
 local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
+local events = require("aider-ui.events")
 
 local mapOpts = { noremap = true }
 
@@ -29,6 +30,11 @@ M.update_split_winbar = function()
   local winbar_content = string.format("%s", content)
   vim.api.nvim_set_option_value("winbar", winbar_content, { win = winid })
 end
+
+-- bind update event
+events.ChatCompleted:add_handler(M.update_split_winbar)
+events.SessionStarted:add_handler(M.update_split_winbar)
+events.ChatStart:add_handler(M.update_split_winbar)
 
 M.show_aider_split = function(new_session_name)
   local Split = require("nui.split")
