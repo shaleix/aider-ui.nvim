@@ -101,12 +101,9 @@ M.cmd_popup = function()
 
   layout:mount()
   vim.api.nvim_win_set_buf(top_popup.winid, session.bufnr)
-  vim.api.nvim_set_current_win(top_popup.winid)
-  vim.api.nvim_input("<C-\\><C-n>G")
-
-  vim.defer_fn(function()
-    vim.api.nvim_set_current_win(bottom_input.winid)
-  end, 100)
+  -- scroll bottom
+  local lnum = vim.api.nvim_buf_line_count(session.bufnr)
+  vim.api.nvim_win_set_cursor(top_popup.winid, { lnum, 0 })
 end
 
 return M
