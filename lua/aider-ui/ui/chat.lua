@@ -220,11 +220,6 @@ function M.show_input(input_type, default_value)
     elseif input_type == "architect" then
       session:architect(value)
     end
-    -- session:send_cmd("/" .. input_type .. " " .. value)
-    if side_split.split.winid ~= nil then
-      vim.api.nvim_set_current_win(side_split.split.winid)
-      vim.api.nvim_input("<C-\\><C-n>G")
-    end
   end
   local content_popup = popup_input(title, handle_submit, opts, session_title)
   local file_buf = files.new_file_buffer(content_popup.bufnr, session)

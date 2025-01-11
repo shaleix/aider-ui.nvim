@@ -84,6 +84,9 @@ local function create(session_name, bufnr, opts)
       bufnr = bufnr,
       on_stdout = function(job_id, data, event)
         if s.port ~= nil or data == nil then
+          if s.processing then
+            events.GetOutput:emit({ job_id = job_id })
+          end
           return
         end
         for _, line in pairs(data) do

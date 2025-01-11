@@ -9,6 +9,22 @@ local M = {
   split = nil,
 }
 
+events.GetOutput:add_handler(function (data)
+  local job_id = data.job_id
+  local current_session = sessions.current_session()
+  if current_session == nil then
+    return
+  end
+  if current_session.job_id ~= job_id then
+    return
+  end
+  -- 如果当前session的job_id和data.job_id不相同，则直接return
+  if M.split and vim.api.nvim_win_is_valid(M.split.winid) then
+    local lnum = vim.api.nvim_buf_line_count(current_session.bufnr)
+    vim.api.nvim_win_set_cursor(M.split.winid, { lnum, 0 })
+  end
+end)
+
 M.update_split_winbar = function()
   if M.split == nil then
     return
