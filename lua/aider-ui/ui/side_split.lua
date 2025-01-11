@@ -30,6 +30,12 @@ M.update_split_winbar = function()
     return
   end
   local winid = M.split.winid
+  if winid == nil or winid == 0 then
+    return
+  end
+  if not vim.api.nvim_win_is_valid(winid) then
+    return
+  end
   local session_status = sessions.list_session_status()
   local session_names = {}
   local session_icon = "󰭻 "
