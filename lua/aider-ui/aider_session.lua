@@ -4,6 +4,11 @@ local configs = require("aider-ui.config").options
 local events = require("aider-ui.events")
 
 ---@alias handle_res fun(res: table)
+---@class ConfirmInfo
+---@field question string
+---@field default string
+---@field subject string | nil
+---@field allow_never boolean
 
 ---@class Session
 ---@field name string
@@ -14,7 +19,7 @@ local events = require("aider-ui.events")
 ---@field on_started function|nil
 ---@field modify_history table
 ---@field bufnr number
----@field confirm_tips string|nil
+---@field confirm_info ConfirmInfo|nil
 ---@field processing boolean
 ---@field need_confirm boolean
 ---@field last_file_content_bufnr number|nil
@@ -60,7 +65,7 @@ local function create(session_name, bufnr, opts)
     port = nil,
     bufnr = bufnr,
     name = session_name,
-    confirm_tips = nil,
+    confirm_info = nil,
     modify_history = {},
     processing = true,
     need_confirm = false,
@@ -158,8 +163,9 @@ function Session:handle_process_chunk_response(res)
     events.SessionStarted:emit({ session = self })
   elseif res.type == "confirm_ask" then
     utils.warn(res.prompt, "Aider Confirm (" .. self.name .. ")")
-    self.confirm_info = res.prompt
+    self.confirm_info = res.confirm_info
     self.need_confirm = true
+    events.AskConfirm:emit({session = self})
   elseif res.type == "notify" then
     utils.info(res.message, "Aider Command Message")
   elseif res.type == "cmd_start" then

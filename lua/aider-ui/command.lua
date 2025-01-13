@@ -177,6 +177,22 @@ M.setup = function()
     local session_name = "w:" .. dir_name
     sessions_ui.create_session_in_working_dir(dir_path, session_name, true)
   end, { desc = "Create new watch files session in current file's directory" })
+
+  vim.api.nvim_create_user_command("AiderConfirmToggle", function()
+    local current_session = sessions_manager.current_session()
+    if not current_session then
+      utils.err("No active Aider session found.")
+      return
+    end
+    local confirm = require("aider-ui.ui.confirm")
+    confirm.show_confirm(current_session, function(confirmed)
+      if confirmed then
+        current_session:confirm(true)
+      else
+        current_session:confirm(false)
+      end
+    end)
+  end, { desc = "Toggle Aider confirm popup" })
 end
 
 return M

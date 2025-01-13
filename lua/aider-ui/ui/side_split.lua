@@ -57,6 +57,7 @@ end
 events.ChatCompleted:add_handler(M.update_split_winbar)
 events.SessionStarted:add_handler(M.update_split_winbar)
 events.ChatStart:add_handler(M.update_split_winbar)
+events.AskConfirm:add_handler(M.update_split_winbar)
 
 M.show_aider_split = function(new_session_name)
   local Split = require("nui.split")

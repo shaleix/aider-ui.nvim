@@ -476,9 +476,20 @@ class CoderServerHandler:
     def on_confirm(cls, question, *args, **kwargs):
         if cls.running and cls.send_chunk and not (cls.coder
                                                    and cls.coder.io.yes):
+            info = {}
+            for key, value in kwargs.items():
+                if not isinstance(value, (bool, int, str)):
+                    info[key] = repr(value)
+                else:
+                    info[key] = value
+            if 'default' not in kwargs:
+                kwargs['default'] = 'Y'
             cls.send_chunk({
                 'type': cls.CHUNK_TYPE_CONFIRM_ASK,
-                'prompt': question
+                'confirm_info': dict(
+                    question=question,
+                    **info,
+                )
             })
 
     @classmethod
@@ -516,7 +527,7 @@ def _on_write_text(self, filename, content, *args, **kwargs):
 
 
 def _on_confirm_ask(self, question, *args, **kwargs):
-    CoderServerHandler.on_confirm(question)
+    CoderServerHandler.on_confirm(question, *args, **kwargs)
 
 
 InputOutput.tool_output = listener(InputOutput.tool_output, _on_tool_output)
