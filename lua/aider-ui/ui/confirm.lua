@@ -25,10 +25,9 @@ local function render_confirm(session, bufnr, result)
 
   -- Add subject line if present
   if session.confirm_info.subject then
-    table.insert(
-      lines,
-      NuiLine({ NuiText(session.confirm_info.subject, "AiderWarning") })
-    )
+    for _, line in ipairs(session.confirm_info.subject) do
+      table.insert(lines, NuiLine({ NuiText(line, "AiderWarning") }))
+    end
     table.insert(lines, NuiLine({ NuiText("") }))
   end
 
@@ -70,14 +69,27 @@ function M.show_confirm()
     return
   end
   local current_value = session_with_confirm.confirm_info.default
-  local options = {"y", "n"}
+  local options = { "y", "n" }
 
-  -- Calculate popup height
+  -- Calculate popup dimensions
   local subject_lines = 0
+  local max_line_length = 0
+
+  -- Calculate height and max line length
   if session_with_confirm.confirm_info.subject ~= nil then
     subject_lines = #session_with_confirm.confirm_info.subject
+    max_line_length = math.max(max_line_length, #session_with_confirm.confirm_info.subject)
   end
-  local popup_height = subject_lines + 4  -- 4 = question + empty line + options + padding
+  if session_with_confirm.confirm_info.question ~= nil then
+    max_line_length = math.max(max_line_length, #session_with_confirm.confirm_info.question)
+  end
+
+  -- Add padding for options line
+  max_line_length = max_line_length + 10
+
+  -- Set width constraints
+  local popup_width = math.min(math.max(max_line_length, 50), 90) -- min 50, max 90
+  local popup_height = subject_lines + 4 -- 4 = question + empty line + options + padding
 
   local popup = nui_popup({
     enter = true,
@@ -97,7 +109,7 @@ function M.show_confirm()
       },
     },
     size = {
-      width = "50%",
+      width = popup_width,
       height = popup_height,
     },
     -- win_options = {
