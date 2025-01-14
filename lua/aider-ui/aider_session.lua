@@ -7,7 +7,7 @@ local events = require("aider-ui.events")
 ---@class ConfirmInfo
 ---@field question string
 ---@field default string
----@field subject string | nil
+---@field subject table | nil
 ---@field allow_never boolean
 
 ---@class Session
@@ -166,6 +166,9 @@ function Session:handle_process_chunk_response(res)
     self.confirm_info = res.confirm_info
     self.need_confirm = true
     events.AskConfirm:emit({session = self})
+  elseif res.type == 'confirm_complete' then
+    self.confirm_info = nil
+    self.need_confirm = false
   elseif res.type == "notify" then
     utils.info(res.message, "Aider Command Message")
   elseif res.type == "cmd_start" then

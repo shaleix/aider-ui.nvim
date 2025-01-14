@@ -84,6 +84,7 @@ class CoderServerHandler:
     CHUNK_TYPE_CMD_START = "cmd_start"
     CHUNK_TYPE_CMD_COMPLETE = "cmd_complete"
     CHUNK_TYPE_CONFIRM_ASK = "confirm_ask"
+    CHUNK_TYPE_CONFIRM_COMPLETE = "confirm_complete"
 
     def handle_message(self, message, send_chunk):
         """
@@ -473,7 +474,7 @@ class CoderServerHandler:
         return sorted(chat_models), None
 
     @classmethod
-    def on_confirm(cls, question, *args, **kwargs):
+    def before_confirm(cls, question, *args, **kwargs):
         if cls.running and cls.send_chunk and not (cls.coder
                                                    and cls.coder.io.yes):
             info = {}
@@ -483,7 +484,10 @@ class CoderServerHandler:
                 else:
                     info[key] = value
             if 'default' not in kwargs:
-                kwargs['default'] = 'Y'
+                info['default'] = 'y'
+            if kwargs.get('subject') and "\n" in kwargs['subject']:
+                info['subject'] = kwargs['subject'].splitlines()
+            print(info, question)
             cls.send_chunk({
                 'type': cls.CHUNK_TYPE_CONFIRM_ASK,
                 'confirm_info': dict(
@@ -493,7 +497,15 @@ class CoderServerHandler:
             })
 
     @classmethod
-    def before_write_text(cls, filename: str):
+    def after_confirm(cls, ret, *args, **kwargs):
+        if cls.running and cls.send_chunk and not (cls.coder
+                                                   and cls.coder.io.yes):
+            cls.send_chunk({
+                'type': cls.CHUNK_TYPE_CONFIRM_COMPLETE,
+            })
+
+    @classmethod
+    def before_write_text(cls, filename: str, *args, **kwargs):
         if filename not in [
                 file['path'] for file in cls.change_files['files']
         ]:
@@ -507,32 +519,31 @@ class CoderServerHandler:
             })
 
 
-def listener(func, before_call):
+def listener(func, before_call, after_call=None):
 
-    def wrapper_func(*args, **kwargs):
+    def wrapper_func(self, *args, **kwargs):
         before_call(*args, **kwargs)
-        return func(*args, **kwargs)
+        ret = func(self, *args, **kwargs)
+        if after_call:
+            after_call(ret, *args, **kwargs)
+        return ret
 
     return wrapper_func
 
 
-def _on_tool_output(self, *messages, **kwargs):
+def _on_tool_output(*messages, **kwargs):
     for item in messages:
         if isinstance(item, str):
             CoderServerHandler.output_history.append(item)
 
 
-def _on_write_text(self, filename, content, *args, **kwargs):
-    CoderServerHandler.before_write_text(filename)
-
-
-def _on_confirm_ask(self, question, *args, **kwargs):
-    CoderServerHandler.on_confirm(question, *args, **kwargs)
-
-
 InputOutput.tool_output = listener(InputOutput.tool_output, _on_tool_output)
-InputOutput.confirm_ask = listener(InputOutput.confirm_ask, _on_confirm_ask)
-InputOutput.write_text = listener(InputOutput.write_text, _on_write_text)
+InputOutput.confirm_ask = listener(
+    InputOutput.confirm_ask,
+    CoderServerHandler.before_confirm,
+    CoderServerHandler.after_confirm,
+)
+InputOutput.write_text = listener(InputOutput.write_text, CoderServerHandler.before_write_text)
 
 
 def coder_run_one_wrapper(run_one):

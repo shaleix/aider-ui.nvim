@@ -44,9 +44,9 @@ local function render_confirm(session, bufnr, result)
     lines,
     NuiLine({
       NuiText(" "),
-      NuiText(" Yes ", result == "y" and "AiderH1" or ""),
+      NuiText(" (Y)es ", result == "y" and "AiderH1" or ""),
       NuiText(" "),
-      NuiText(" No ", result == "n" and "AiderH1" or ""),
+      NuiText(" (N)o ", result == "n" and "AiderH1" or ""),
     })
   )
   for i, line in ipairs(lines) do
@@ -70,6 +70,14 @@ function M.show_confirm()
     return
   end
   local current_value = session_with_confirm.confirm_info.default
+  local options = {"y", "n"}
+
+  -- Calculate popup height
+  local subject_lines = 0
+  if session_with_confirm.confirm_info.subject ~= nil then
+    subject_lines = #session_with_confirm.confirm_info.subject
+  end
+  local popup_height = subject_lines + 4  -- 4 = question + empty line + options + padding
 
   local popup = nui_popup({
     enter = true,
@@ -90,7 +98,7 @@ function M.show_confirm()
     },
     size = {
       width = "50%",
-      height = 6,
+      height = popup_height,
     },
     -- win_options = {
     --   winhighlight = "Normal:Normal,FloatBorder:Normal",
@@ -123,7 +131,15 @@ function M.show_confirm()
   end)
 
   popup:map("n", "<Tab>", function()
-    current_value = current_value == "y" and "y" or "y"
+    -- Find current index using for loop
+    local current_index = 1
+    for i, opt in ipairs(options) do
+      if opt == current_value then
+        current_index = i
+        break
+      end
+    end
+    current_value = options[(current_index % #options) + 1]
     render_confirm(session_with_confirm, popup.bufnr, current_value)
   end)
 
