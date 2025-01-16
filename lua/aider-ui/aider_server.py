@@ -112,7 +112,8 @@ class CoderServerHandler:
         }
         if err:
             data["error"] = err
-        return data
+        keep_alive = method in ("notify")
+        return data, keep_alive
 
     def method_list_files(self, *args, **kwargs):
         """
@@ -622,11 +623,13 @@ class SocketServer:
 
                 try:
                     json_data = json.loads(message.decode())
-                    res = handler.handle_message(json_data)
+                    res, keep_alive = handler.handle_message(json_data)
                     log.info("Received JSON: %s", json_data)
                     response = json.dumps(res).encode()
                     log.info("response: %s", response.decode())
                     client_socket.sendall(response + END_OF_MESSAGE)
+                    if not keep_alive:
+                        break
                 except json.JSONDecodeError as e:
                     print(f"JSON Decode Error: {e}")
                     client_socket.sendall(b"Invalid JSON" + END_OF_MESSAGE)
