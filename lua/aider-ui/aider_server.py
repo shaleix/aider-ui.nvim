@@ -9,6 +9,7 @@ import tempfile
 import threading
 import traceback
 from typing import Dict, List, Optional, TypedDict, Tuple
+from queue import Queue
 
 from aider.coders import Coder
 from aider.commands import Commands
@@ -78,6 +79,7 @@ class CoderServerHandler:
     }
     diagnostics: List[FileDiagnostics] = []
     lock = threading.Lock()  # 添加锁
+    notification_queue = Queue(9999)
 
     CHUNK_TYPE_AIDER_START = "aider_start"
     CHUNK_TYPE_NOTIFY = "notify"
@@ -280,9 +282,15 @@ class CoderServerHandler:
         lines = self.coder.get_announcements()
         return lines, None
 
+    def method_notify(self, params):
+        """
+        Get next notification from queue
+        """
+        return self.notification_queue.get(block=True), None
+
     def method_process_status(self, params) -> Tuple[dict, Optional[ErrorData]]:
         if self.coder is not None:
-            self.notify_process_status({
+            self.add_notify_message({
                 "type": self.CHUNK_TYPE_AIDER_START,
                 "message": "aider started"
             })
@@ -339,11 +347,10 @@ class CoderServerHandler:
 
     @classmethod
     def handle_process_start(cls):
-        if cls.send_chunk is not None and cls.coder is None:
-            cls.send_chunk({
-                "type": cls.CHUNK_TYPE_AIDER_START,
-                "message": "aider started"
-            })
+        cls.add_notify_message({
+            "type": cls.CHUNK_TYPE_AIDER_START,
+            "message": "aider started"
+        })
 
     @classmethod
     def handle_cmd_start(cls, message: Optional[str] = None) -> int:
@@ -352,8 +359,8 @@ class CoderServerHandler:
         """
         log.info("handle cmd: %s", message)
         cls.running = True
-        if cls.send_chunk is not None and message:
-            cls.notify_process_status({
+        if message:
+            cls.add_notify_message({
                 "type": cls.CHUNK_TYPE_CMD_START,
                 "message": f"{cls._get_cmd_from_message(message)} start"
             })
@@ -395,20 +402,16 @@ class CoderServerHandler:
                 res_msg = f"{command} complete"
             else:
                 res_msg = 'complete'
-        if cls.send_chunk is not None:
-            cls.notify_process_status({
-                "type": cls.CHUNK_TYPE_CMD_COMPLETE,
-                "modified_info": modified_info,
-                "message": res_msg
-            })
+        cls.add_notify_message({
+            "type": cls.CHUNK_TYPE_CMD_COMPLETE,
+            "modified_info": modified_info,
+            "message": res_msg
+        })
         cls.handle_cache_files()
 
     @classmethod
-    def notify_process_status(cls, data):
-        if cls.send_chunk is None:
-            return
-        with cls.lock:  # 使用锁
-            cls.send_chunk(data)
+    def add_notify_message(cls, data):
+        cls.notification_queue.put(data)
 
     @classmethod
     def handle_cache_files(cls):
@@ -475,8 +478,7 @@ class CoderServerHandler:
 
     @classmethod
     def before_confirm(cls, question, *args, **kwargs):
-        if cls.running and cls.send_chunk and not (cls.coder
-                                                   and cls.coder.io.yes):
+        if cls.running and not (cls.coder and cls.coder.io.yes):
             info = {}
             for key, value in kwargs.items():
                 if not isinstance(value, (bool, int, str)):
@@ -487,8 +489,7 @@ class CoderServerHandler:
                 info['default'] = 'y'
             if kwargs.get('subject') and "\n" in kwargs['subject']:
                 info['subject'] = kwargs['subject'].splitlines()
-            print(info, question)
-            cls.send_chunk({
+            cls.add_notify_message({
                 'type': cls.CHUNK_TYPE_CONFIRM_ASK,
                 'confirm_info': dict(
                     question=question,
@@ -498,9 +499,8 @@ class CoderServerHandler:
 
     @classmethod
     def after_confirm(cls, ret, *args, **kwargs):
-        if cls.running and cls.send_chunk and not (cls.coder
-                                                   and cls.coder.io.yes):
-            cls.send_chunk({
+        if cls.running and not (cls.coder and cls.coder.io.yes):
+            cls.add_notify_message({
                 'type': cls.CHUNK_TYPE_CONFIRM_COMPLETE,
             })
 

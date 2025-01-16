@@ -78,11 +78,14 @@ local function create(session_name, bufnr, opts)
   local linsten_process = function()
     local client = s:get_client()
     client:connect(function(res)
-      s:handle_process_status(res)
-    end, function(res)
-      s:handle_process_chunk_response(res)
+      if res.result ~= nil then
+        pcall(function (result)
+          s:handle_notify(result)
+        end, res.result)
+      end
+      client:send("notify", {})
     end)
-    client:send("process_status", {})
+    client:send("notify", {})
   end
   s.job_id = vim.api.nvim_buf_call(bufnr, function()
     local term_opts = {
@@ -148,12 +151,7 @@ function Session:exit(on_response)
 end
 
 ---@param res table
-function Session:handle_process_status(res)
-  utils.info(res.result)
-end
-
----@param res table
-function Session:handle_process_chunk_response(res)
+function Session:handle_notify(res)
   if res.type == "aider_start" then
     self.processing = false
     utils.info(res.message)
