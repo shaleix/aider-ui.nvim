@@ -7,12 +7,10 @@ local uv = vim.loop
 ---@field port integer
 ---@field params table|string
 local Client = {}
-local CHUNK_END = "\t\n\t\n"
 local END_OF_MESSAGE = "\r\n\r\n"
 
 ---@param response_callback res_callback
----@param chunk_response_callback? res_callback
-function Client:connect(response_callback, chunk_response_callback)
+function Client:connect(response_callback)
   self.last_id = 1
   self.method = ""
   self.params = {}
@@ -21,9 +19,6 @@ function Client:connect(response_callback, chunk_response_callback)
     response_callback = function() end
   end
 
-  if chunk_response_callback == nil then
-    chunk_response_callback = function() end
-  end
 
   self.socket = assert(uv.new_tcp())
   self.socket:connect(self.host, self.port, function(err)
@@ -38,13 +33,7 @@ function Client:connect(response_callback, chunk_response_callback)
       end
       if chunk then
         response = response .. chunk
-        if vim.endswith(response, CHUNK_END) then
-          local json_obj = vim.json.decode(vim.trim(response))
-          vim.schedule(function()
-            chunk_response_callback(json_obj, self.method, self.params)
-          end)
-          response = ""
-        elseif vim.endswith(response, END_OF_MESSAGE) then
+        if vim.endswith(response, END_OF_MESSAGE) then
           response = vim.trim(response)
           local json_obj = vim.json.decode(response)
           vim.schedule(function()
@@ -75,9 +64,8 @@ end
 
 ---@param params table
 ---@param on_response res_callback
----@param on_chunk_response res_callback
-function Client:aider_code(params, on_response, on_chunk_response)
-  self:connect(on_response, on_chunk_response)
+function Client:aider_code(params, on_response)
+  self:connect(on_response)
   self:send("processing", params)
 end
 

@@ -27,7 +27,6 @@ log = logging.getLogger(__name__)
 os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
 
 END_OF_MESSAGE = b"\r\n\r\n"
-CHUNK_END = b"\t\n\t\n"
 
 
 class ErrorData(TypedDict):
@@ -68,7 +67,6 @@ class CoderServerHandler:
     coder: Optional[Coder] = None
     output_history = []
     running = False
-    send_chunk = None
     waiting_add_files = []
     waiting_read_files = []
     waiting_drop_files = []
@@ -88,7 +86,7 @@ class CoderServerHandler:
     CHUNK_TYPE_CONFIRM_ASK = "confirm_ask"
     CHUNK_TYPE_CONFIRM_COMPLETE = "confirm_complete"
 
-    def handle_message(self, message, send_chunk):
+    def handle_message(self, message):
         """
         handle rpc server message
         """
@@ -99,15 +97,12 @@ class CoderServerHandler:
             return {
                 "jsonrpc": "2.0",
                 "error": {
-                    "code": 32601,
+                    "code": 32601, 
                     "message": "Invalid method"
                 },
                 "result": None,
                 "id": message.get("id"),
             }
-
-        if method == 'process_status':
-            CoderServerHandler.send_chunk = send_chunk
 
         res, err = handler_method(params)
         data = {
@@ -625,14 +620,9 @@ class SocketServer:
             if END_OF_MESSAGE in buffer:
                 message, buffer = buffer.split(END_OF_MESSAGE, 1)
 
-                def send_chunk(chunk_res):
-                    log.info("Sending chunk: %s", chunk_res)
-                    chunk_res = json.dumps(chunk_res).encode()
-                    client_socket.sendall(chunk_res + CHUNK_END)
-
                 try:
                     json_data = json.loads(message.decode())
-                    res = handler.handle_message(json_data, send_chunk)
+                    res = handler.handle_message(json_data)
                     log.info("Received JSON: %s", json_data)
                     response = json.dumps(res).encode()
                     log.info("response: %s", response.decode())
