@@ -38,16 +38,13 @@ local function render_confirm(session, bufnr, result)
   )
   table.insert(lines, NuiLine({ NuiText("") }))
 
-  -- Add yes/no options
-  table.insert(
-    lines,
-    NuiLine({
-      NuiText(" "),
-      NuiText(" (Y)es ", result == "y" and "AiderH1" or ""),
-      NuiText(" "),
-      NuiText(" (N)o ", result == "n" and "AiderH1" or ""),
-    })
-  )
+  -- Add options
+  local option_line = NuiLine({NuiText(" ")})
+  for _, opt in ipairs(session.confirm_info.options or {}) do
+    option_line:append(NuiText(" " .. opt.label .. " ", result == opt.value and "AiderH1" or ""))
+    option_line:append(NuiText(" "))
+  end
+  table.insert(lines, option_line)
   for i, line in ipairs(lines) do
     line:render(bufnr, -1, i)
   end
@@ -69,7 +66,7 @@ function M.show_confirm()
     return
   end
   local current_value = session_with_confirm.confirm_info.default
-  local options = { "y", "n" }
+  local options = session_with_confirm.confirm_info.options or {}
 
   -- Calculate popup dimensions
   local subject_lines = 0
@@ -124,15 +121,14 @@ function M.show_confirm()
   end
 
   -- Keymaps
-  popup:map("n", "Y", function()
-    on_confirm(true)
-    popup:unmount()
-  end)
-
-  popup:map("n", "N", function()
-    on_confirm(false)
-    popup:unmount()
-  end)
+  -- Add keymaps for each option
+  for _, opt in ipairs(options) do
+    local key = opt.value:upper()
+    popup:map("n", key, function()
+      on_confirm(opt.value)
+      popup:unmount()
+    end)
+  end
 
   popup:map("n", "<Esc>", function()
     popup:unmount()
@@ -146,12 +142,12 @@ function M.show_confirm()
     -- Find current index using for loop
     local current_index = 1
     for i, opt in ipairs(options) do
-      if opt == current_value then
+      if opt.value == current_value then
         current_index = i
         break
       end
     end
-    current_value = options[(current_index % #options) + 1]
+    current_value = options[(current_index % #options) + 1].value
     render_confirm(session_with_confirm, popup.bufnr, current_value)
   end)
 

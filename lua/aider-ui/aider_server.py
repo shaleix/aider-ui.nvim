@@ -487,27 +487,44 @@ class CoderServerHandler:
         return sorted(chat_models), None
 
     @classmethod
-    def before_confirm(cls, question, *args, **kwargs):
-        if cls.running and not (cls.coder and cls.coder.io.yes):
-            info = {}
-            for key, value in kwargs.items():
-                if not isinstance(value, (bool, int, str)):
-                    info[key] = repr(value)
-                else:
-                    info[key] = value
-            if "default" not in kwargs:
-                info["default"] = "y"
-            if kwargs.get("subject") and "\n" in kwargs["subject"]:
-                info["subject"] = kwargs["subject"].splitlines()
-            cls.add_notify_message(
-                {
-                    "type": cls.CHUNK_TYPE_CONFIRM_ASK,
-                    "confirm_info": dict(
-                        question=question,
-                        **info,
-                    ),
-                }
-            )
+    def before_confirm(
+        cls,
+        question,
+        *args,
+        default="y",
+        subject=None,
+        explicit_yes_required=False,
+        group=None,
+        allow_never=False,
+    ):
+        if not cls.running or (cls.coder and cls.coder.io.yes):
+            return
+
+        options = [
+            {"label": "(Y)es", "value": "y"},
+            {"label": "(N)o", "value": "n"},
+        ]
+        if group:
+            if not explicit_yes_required:
+                options.append({"label": "(A)ll", "value": "a"})
+                options.append({"label": "(S)kip", "value": "s"})
+        if allow_never:
+            options.append({"label": "(D)on't ask again", "value": "d"})
+        confirm_info = {
+            "default": default,
+            "options": options,
+        }
+        if subject and "\n" in subject:
+            confirm_info["subject"] = subject.splitlines()
+        cls.add_notify_message(
+            {
+                "type": cls.CHUNK_TYPE_CONFIRM_ASK,
+                "confirm_info": dict(
+                    question=question,
+                    **confirm_info,
+                ),
+            }
+        )
 
     @classmethod
     def after_confirm(cls, ret, *args, **kwargs):
