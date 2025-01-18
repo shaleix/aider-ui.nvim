@@ -185,13 +185,7 @@ M.setup = function()
       return
     end
     local confirm = require("aider-ui.ui.confirm")
-    confirm.show_confirm(current_session, function(confirmed)
-      if confirmed then
-        current_session:confirm(true)
-      else
-        current_session:confirm(false)
-      end
-    end)
+    confirm.toggle_aider_confirm()
   end, { desc = "Toggle Aider confirm popup" })
 end
 

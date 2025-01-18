@@ -19,9 +19,11 @@ from aider.llm import litellm
 from aider.main import SwitchCoder
 from aider.main import main as aider_main
 
-logging.basicConfig(filename='/tmp/nvim_aider.log',
-                    level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    filename="/tmp/nvim_aider.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 log = logging.getLogger(__name__)
 # litellm start slow, https://github.com/BerriAI/litellm/issues/2677
 os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
@@ -73,7 +75,7 @@ class CoderServerHandler:
     exit_event = threading.Event()
     change_files = {
         "before_tmp_dir": "",
-        "files": []  # [{'path': path, 'before_path': path_tmp_map.get(path) }]
+        "files": [],  # [{'path': path, 'before_path': path_tmp_map.get(path) }]
     }
     diagnostics: List[FileDiagnostics] = []
     lock = threading.Lock()  # 添加锁
@@ -96,10 +98,7 @@ class CoderServerHandler:
         if not handler_method:
             return {
                 "jsonrpc": "2.0",
-                "error": {
-                    "code": 32601, 
-                    "message": "Invalid method"
-                },
+                "error": {"code": 32601, "message": "Invalid method"},
                 "result": None,
                 "id": message.get("id"),
             }
@@ -120,7 +119,7 @@ class CoderServerHandler:
         get add and read files
         """
         if not self.coder:
-            return {'added': [], 'readonly': []}, None
+            return {"added": [], "readonly": []}, None
         inchat_files = self.coder.get_inchat_relative_files()
         read_only_files = []
         for abs_file_path in self.coder.abs_read_only_fnames or []:
@@ -128,8 +127,8 @@ class CoderServerHandler:
             read_only_files.append(rel_file_path)
 
         return {
-            'added': inchat_files,
-            'readonly': read_only_files,
+            "added": inchat_files,
+            "readonly": read_only_files,
         }, None
 
     def method_add_files(self, params: List[str]):
@@ -250,17 +249,19 @@ class CoderServerHandler:
         chat_histories = []
         multi_lines = []
         for row in history:
-            if row.endswith('}'):
-                multi_lines = [row.rstrip('}')] if row.rstrip('}') else []
+            if row.endswith("}"):
+                multi_lines = [row.rstrip("}")] if row.rstrip("}") else []
                 continue
-            row = row.lstrip('{')
-            if row.startswith(('/code ', '/ask ', '/architect ')):
-                prefix, content = row.split(' ', 1)
+            row = row.lstrip("{")
+            if row.startswith(("/code ", "/ask ", "/architect ")):
+                prefix, content = row.split(" ", 1)
                 multi_lines.insert(0, content)
-                chat_histories.append({
-                    'cmd': prefix,
-                    'content': '\n'.join(multi_lines),
-                })
+                chat_histories.append(
+                    {
+                        "cmd": prefix,
+                        "content": "\n".join(multi_lines),
+                    }
+                )
                 multi_lines = []
             else:
                 multi_lines.insert(0, row)
@@ -286,10 +287,9 @@ class CoderServerHandler:
 
     def method_process_status(self, params) -> Tuple[dict, Optional[ErrorData]]:
         if self.coder is not None:
-            self.add_notify_message({
-                "type": self.CHUNK_TYPE_AIDER_START,
-                "message": "aider started"
-            })
+            self.add_notify_message(
+                {"type": self.CHUNK_TYPE_AIDER_START, "message": "aider started"}
+            )
         self.exit_event.wait()
         return {"message": "exit"}, None
 
@@ -297,7 +297,7 @@ class CoderServerHandler:
         if not self.coder:
             raise
         if not params:
-            return '', None
+            return "", None
         self.__class__.diagnostics = params
         return "", None
 
@@ -317,18 +317,20 @@ class CoderServerHandler:
         cls.running = False
         cls.handle_process_start()
         for item in cls.diagnostics:
-            fname = item['fname']
+            fname = item["fname"]
             rel_fname = linter.get_rel_fname(fname)
             lines = set()
             try:
-                file_content = Path(fname).read_text(encoding=linter.encoding, errors="replace")
+                file_content = Path(fname).read_text(
+                    encoding=linter.encoding, errors="replace"
+                )
             except OSError as err:
                 print(f"Unable to read {fname}: {err}")
             res = "# Fix any errors below, if possible.\n\n"
-            for diagnostic in item['diagnostics']:
-                code, message = diagnostic.get('code'), diagnostic.get('message')
-                lnum, col = diagnostic.get('lnum'), diagnostic.get('col')
-                end_lnum = diagnostic.get('end_lnum')
+            for diagnostic in item["diagnostics"]:
+                code, message = diagnostic.get("code"), diagnostic.get("message")
+                lnum, col = diagnostic.get("lnum"), diagnostic.get("col")
+                end_lnum = diagnostic.get("end_lnum")
                 res += f"{fname}:{lnum}:{col}: {code}: {message}\n"
                 res += "\n"
                 lines.update(range(lnum, end_lnum + 1))
@@ -339,14 +341,13 @@ class CoderServerHandler:
             lint_coder.run(res)
             lint_coder.abs_fnames = set()
         cls.running = False
-        cls.handle_cmd_complete('fix-diagnostic')
+        cls.handle_cmd_complete("fix-diagnostic")
 
     @classmethod
     def handle_process_start(cls):
-        cls.add_notify_message({
-            "type": cls.CHUNK_TYPE_AIDER_START,
-            "message": "aider started"
-        })
+        cls.add_notify_message(
+            {"type": cls.CHUNK_TYPE_AIDER_START, "message": "aider started"}
+        )
 
     @classmethod
     def handle_cmd_start(cls, message: Optional[str] = None) -> int:
@@ -356,10 +357,12 @@ class CoderServerHandler:
         log.info("handle cmd: %s", message)
         cls.running = True
         if message:
-            cls.add_notify_message({
-                "type": cls.CHUNK_TYPE_CMD_START,
-                "message": f"{cls._get_cmd_from_message(message)} start"
-            })
+            cls.add_notify_message(
+                {
+                    "type": cls.CHUNK_TYPE_CMD_START,
+                    "message": f"{cls._get_cmd_from_message(message)} start",
+                }
+            )
         # Create a temporary directory and record it in change_files, and clear file_paths
         temp_dir = tempfile.mkdtemp()
         cls.change_files["before_tmp_dir"] = temp_dir
@@ -367,42 +370,54 @@ class CoderServerHandler:
         return len(cls.output_history)
 
     @classmethod
-    def handle_cmd_complete(cls, message: Optional[str] = None, output_idx: Optional[int] = None):
+    def handle_cmd_complete(
+        cls, message: Optional[str] = None, output_idx: Optional[int] = None
+    ):
         """
         handle chat process complete
         """
-        log.info("handle_cmd_complete: %s, output_idx: %s", message, output_idx, stack_info=True)
+        log.info(
+            "handle_cmd_complete: %s, output_idx: %s",
+            message,
+            output_idx,
+            stack_info=True,
+        )
         assert cls.coder is not None
         after_tmp_dir = tempfile.mkdtemp()
         after_tmp_map = copy_files_to_dir(
-            [file['path'] for file in cls.change_files['files']],
+            [file["path"] for file in cls.change_files["files"]],
             after_tmp_dir,
         )
-        modified_info = [{
-            'path': file['path'],
-            'abs_path': cls.coder.abs_root_path(file['path']),
-            'before_path': file.get('before_path'),
-            'after_path': after_tmp_map.get(file['path'])
-        } for file in cls.change_files['files']]
+        modified_info = [
+            {
+                "path": file["path"],
+                "abs_path": cls.coder.abs_root_path(file["path"]),
+                "before_path": file.get("before_path"),
+                "after_path": after_tmp_map.get(file["path"]),
+            }
+            for file in cls.change_files["files"]
+        ]
         cls.running = False
-        res_msg = ''
+        res_msg = ""
         if message and output_idx is not None:
             message = message.strip()
             command = cls._get_cmd_from_message(message)
-            if command == '/commit':
+            if command == "/commit":
                 for msg in cls.output_history[output_idx:]:
                     if msg.startswith("Commit "):
                         res_msg = msg
                         break
-            elif command in ('/ask', '/architect', '/code', '/lint'):
+            elif command in ("/ask", "/architect", "/code", "/lint"):
                 res_msg = f"{command} complete"
             else:
-                res_msg = 'complete'
-        cls.add_notify_message({
-            "type": cls.CHUNK_TYPE_CMD_COMPLETE,
-            "modified_info": modified_info,
-            "message": res_msg
-        })
+                res_msg = "complete"
+        cls.add_notify_message(
+            {
+                "type": cls.CHUNK_TYPE_CMD_COMPLETE,
+                "modified_info": modified_info,
+                "message": res_msg,
+            }
+        )
         cls.handle_cache_files()
 
     @classmethod
@@ -427,7 +442,7 @@ class CoderServerHandler:
         Extract the command from the message.
         """
         if message:
-            return message.split(' ', 1)[0] if ' ' in message else message
+            return message.split(" ", 1)[0] if " " in message else message
         return ""
 
     def method_exit(self, params):
@@ -465,8 +480,7 @@ class CoderServerHandler:
                 continue
             if "litellm_provider" in attrs:
                 provider = attrs.get("litellm_provider").lower() + "/"
-                fq_model = model if model.startswith(
-                    provider) else provider + model
+                fq_model = model if model.startswith(provider) else provider + model
             else:
                 fq_model = model
             chat_models.add(fq_model)
@@ -481,38 +495,39 @@ class CoderServerHandler:
                     info[key] = repr(value)
                 else:
                     info[key] = value
-            if 'default' not in kwargs:
-                info['default'] = 'y'
-            if kwargs.get('subject') and "\n" in kwargs['subject']:
-                info['subject'] = kwargs['subject'].splitlines()
-            cls.add_notify_message({
-                'type': cls.CHUNK_TYPE_CONFIRM_ASK,
-                'confirm_info': dict(
-                    question=question,
-                    **info,
-                )
-            })
+            if "default" not in kwargs:
+                info["default"] = "y"
+            if kwargs.get("subject") and "\n" in kwargs["subject"]:
+                info["subject"] = kwargs["subject"].splitlines()
+            cls.add_notify_message(
+                {
+                    "type": cls.CHUNK_TYPE_CONFIRM_ASK,
+                    "confirm_info": dict(
+                        question=question,
+                        **info,
+                    ),
+                }
+            )
 
     @classmethod
     def after_confirm(cls, ret, *args, **kwargs):
         if cls.running and not (cls.coder and cls.coder.io.yes):
-            cls.add_notify_message({
-                'type': cls.CHUNK_TYPE_CONFIRM_COMPLETE,
-            })
+            cls.add_notify_message(
+                {
+                    "type": cls.CHUNK_TYPE_CONFIRM_COMPLETE,
+                }
+            )
 
     @classmethod
     def before_write_text(cls, filename: str, *args, **kwargs):
-        if filename not in [
-                file['path'] for file in cls.change_files['files']
-        ]:
+        if filename not in [file["path"] for file in cls.change_files["files"]]:
             # Use copy_files_to_dir to copy the file to a temporary directory
             temp_dir = cls.change_files["before_tmp_dir"]
             file_map = copy_files_to_dir([filename], temp_dir)
             # Add file information to change_files
-            cls.change_files['files'].append({
-                'path': filename,
-                'before_path': file_map.get(filename)
-            })
+            cls.change_files["files"].append(
+                {"path": filename, "before_path": file_map.get(filename)}
+            )
 
 
 def listener(func, before_call, after_call=None):
@@ -539,7 +554,9 @@ InputOutput.confirm_ask = listener(
     CoderServerHandler.before_confirm,
     CoderServerHandler.after_confirm,
 )
-InputOutput.write_text = listener(InputOutput.write_text, CoderServerHandler.before_write_text)
+InputOutput.write_text = listener(
+    InputOutput.write_text, CoderServerHandler.before_write_text
+)
 
 
 def coder_run_one_wrapper(run_one):
@@ -547,26 +564,27 @@ def coder_run_one_wrapper(run_one):
     def wrapper_run_one(self, user_message: str, *args, **kwargs):
         # Get the current stack information
         stack = traceback.extract_stack()
-        run_one_count = sum(1 for frame in stack if frame.name.endswith('run_one'))
-        
+        run_one_count = sum(1 for frame in stack if frame.name.endswith("run_one"))
+
         # If run_one is called more than once, skip the following actions
         if run_one_count > 1:
             return run_one(self, user_message, *args, **kwargs)
 
         try:
             output_idx = CoderServerHandler.handle_cmd_start(user_message)
-            if user_message == 'fix-diagnostics':
+            if user_message == "fix-diagnostics":
                 CoderServerHandler.handle_fix_diagnostic()
             else:
                 run_one(self, user_message, *args, **kwargs)
             CoderServerHandler.handle_cmd_complete(user_message, output_idx=output_idx)
         except SwitchCoder as switch:
             if switch.kwargs:
-                switch.kwargs['switch_coder'] = True
+                switch.kwargs["switch_coder"] = True
             else:
-                switch.kwargs = {'switch_coder': True}
+                switch.kwargs = {"switch_coder": True}
             CoderServerHandler.handle_cmd_complete(user_message, output_idx=output_idx)
             raise switch
+
     return wrapper_run_one
 
 
@@ -576,9 +594,9 @@ Coder.run_one = coder_run_one_wrapper(Coder.run_one)
 def coder_create_wrapper(create_method):
 
     def wrapper_create(*args, **kwargs):
-        if 'switch_coder' in kwargs:
+        if "switch_coder" in kwargs:
             switch_coder = True
-            kwargs.pop('switch_coder')
+            kwargs.pop("switch_coder")
         else:
             switch_coder = False
         new_coder = create_method(*args, **kwargs)
@@ -590,7 +608,9 @@ def coder_create_wrapper(create_method):
             CoderServerHandler.coder = new_coder
             CoderServerHandler.handle_cache_files()
         return new_coder
+
     return wrapper_create
+
 
 Coder.create = coder_create_wrapper(Coder.create)
 
@@ -653,7 +673,7 @@ class SocketServer:
 
 def copy_files_to_dir(file_paths, dir_path) -> Dict[str, str]:
     """
-    Return: 
+    Return:
         {source_path: copy_tmp_path}
     """
     file_map = {}
@@ -670,7 +690,7 @@ def copy_files_to_dir(file_paths, dir_path) -> Dict[str, str]:
 
 
 if __name__ == "__main__":
-    server = SocketServer('127.0.0.1')
+    server = SocketServer("127.0.0.1")
     server_thread = threading.Thread(target=server.start)
     server_thread.daemon = True
     server_thread.start()
