@@ -45,12 +45,12 @@ local function render_confirm(session, bufnr, result)
   -- Add question line
   table.insert(
     lines,
-    NuiLine({ NuiText("  ", "AiderWarning"), NuiText(session.confirm_info.question, "AiderWarning") })
+    NuiLine({ NuiText(" ", "AiderWarning"), NuiText(session.confirm_info.question, "AiderWarning") })
   )
   table.insert(lines, NuiLine({ NuiText("") }))
 
   -- Add options
-  local option_line = NuiLine({NuiText(" ")})
+  local option_line = NuiLine({NuiText("> ", "AiderWarning")})
   for _, opt in ipairs(session.confirm_info.options or {}) do
     option_line:append(NuiText(" " .. opt.label .. " ", result == opt.value and "AiderH1" or ""))
     option_line:append(NuiText(" "))
@@ -96,12 +96,13 @@ function M.show_confirm()
   max_line_length = max_line_length + 10
 
   -- Set width constraints
-  local popup_width = math.min(math.max(max_line_length, 50), 90) -- min 50, max 90
+  local popup_width = math.min(math.max(max_line_length, 60), 100) -- min 50, max 90
   local popup_height = subject_lines + 4 -- 4 = question + empty line + options + padding
 
   local popup = nui_popup({
     enter = true,
-    position = "50%",
+    relative = "editor",
+    position = { row = "20%", col = "50%" },
     focusable = true,
     border = {
       style = "rounded",
