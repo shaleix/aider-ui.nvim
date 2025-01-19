@@ -1,10 +1,21 @@
 local nui_popup = require("nui.popup")
 local event = require("nui.utils.autocmd").event
 local utils = require("aider-ui.utils")
+local events = require("aider-ui.events")
 
 local M = {}
 
 local sessions_manager = require("aider-ui.aider_sessions_manager")
+local configs = require("aider-ui.config").options
+
+-- Setup auto confirm pop handler
+function M.setup()
+  if configs.auto_pop_confirm then
+    events.AskConfirm:add_handler(function(session)
+      M.show_confirm()
+    end, "auto_confirm_pop")
+  end
+end
 
 function M.toggle_aider_confirm()
   local sessions = sessions_manager.sessions

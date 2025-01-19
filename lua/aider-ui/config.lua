@@ -12,6 +12,7 @@ M.defaults = {
     "--dark-mode",
   },
   aider_cmd_args_watch_files = nil,
+  auto_pop_confirm = true,  -- Automatically pop confirm dialog when AskConfirm event is triggered
 }
 
 M.options = {}
