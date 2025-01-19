@@ -1,0 +1,550 @@
+# -*- coding: utf-8 -*-
+import logging
+import os
+import shutil
+import tempfile
+import threading
+from pathlib import Path
+from queue import Queue
+from typing import Dict, List, Optional, Tuple, TypedDict
+
+from aider.coders import Coder
+from aider.commands import Commands
+from aider.linter import tree_context
+from aider.llm import litellm
+
+log = logging.getLogger(__name__)
+
+
+class ErrorData(TypedDict):
+    code: int
+    message: str
+
+
+# {
+#      code = "unused-local",
+#      col = 8,
+#      lnum = 17,
+#      end_col = 17,
+#      end_lnum = 17,
+#      message = "Unused local `telescope`.",
+#      namespace = 59,
+#      severity = 4,
+#      source = "Lua Diagnostics.",
+#      user_data = {
+#        lsp = {
+#          code = "unused-local"
+#        }
+#      }
+#    } }
+class Diagnostic(TypedDict):
+    code: str
+    lnum: int
+    col: int
+    end_lnum: int
+    message: str
+
+
+class FileDiagnostics(TypedDict):
+    fname: str
+    diagnostics: List[Diagnostic]
+
+
+class CoderServerHandler:
+    coder: Optional[Coder] = None
+    output_history = []
+    running = False
+    waiting_add_files = []
+    waiting_read_files = []
+    waiting_drop_files = []
+    exit_event = threading.Event()
+    change_files = {
+        "before_tmp_dir": "",
+        "files": [],  # [{'path': path, 'before_path': path_tmp_map.get(path) }]
+    }
+    diagnostics: List[FileDiagnostics] = []
+    lock = threading.Lock()  # 添加锁
+    notification_queue = Queue(9999)
+
+    CHUNK_TYPE_AIDER_START = "aider_start"
+    CHUNK_TYPE_NOTIFY = "notify"
+    CHUNK_TYPE_CMD_START = "cmd_start"
+    CHUNK_TYPE_CMD_COMPLETE = "cmd_complete"
+    CHUNK_TYPE_CONFIRM_ASK = "confirm_ask"
+    CHUNK_TYPE_CONFIRM_COMPLETE = "confirm_complete"
+
+    def handle_message(self, message):
+        """
+        handle rpc server message
+        """
+        method, params = message.get("method"), message.get("params")
+
+        handler_method = getattr(self, f"method_{method}", None)
+        if not handler_method:
+            return {
+                "jsonrpc": "2.0",
+                "error": {"code": 32601, "message": "Invalid method"},
+                "result": None,
+                "id": message.get("id"),
+            }
+
+        res, err = handler_method(params)
+        data = {
+            "jsonrpc": "2.0",
+            "result": res,
+            "id": message.get("id"),
+        }
+        if err:
+            data["error"] = err
+        keep_alive = method in ("notify")
+        return data, keep_alive
+
+    def method_list_files(self, *args, **kwargs):
+        """
+        get add and read files
+        """
+        if not self.coder:
+            return {"added": [], "readonly": []}, None
+        inchat_files = self.coder.get_inchat_relative_files()
+        read_only_files = []
+        for abs_file_path in self.coder.abs_read_only_fnames or []:
+            rel_file_path = self.coder.get_rel_fname(abs_file_path)
+            read_only_files.append(rel_file_path)
+
+        return {
+            "added": inchat_files,
+            "readonly": read_only_files,
+        }, None
+
+    def method_add_files(self, params: List[str]):
+        """
+        /add params
+        """
+        params = [params] if isinstance(params, str) else params
+        if self.coder is None or self.running:
+            for item in params:
+                if item in self.waiting_read_files:
+                    self.waiting_read_files.remove(item)
+                if item in self.waiting_drop_files:
+                    self.waiting_drop_files.remove(item)
+                self.waiting_add_files.append(item)
+            return "waiting", None
+
+        args = " ".join(params)
+        self.coder.commands.cmd_add(args)
+        return "add file success", None
+
+    def method_read_files(self, params: List[str]):
+        """
+        /read-only params
+        """
+        params = [params] if isinstance(params, str) else params
+        if self.coder is None or self.running:
+            for item in params:
+                if item in self.waiting_add_files:
+                    self.waiting_add_files.remove(item)
+                if item in self.waiting_drop_files:
+                    self.waiting_drop_files.remove(item)
+                self.waiting_read_files.append(item)
+            return "waiting", None
+
+        self.coder.commands.cmd_read_only(" ".join(params))
+        return "read file success", None
+
+    def method_drop(self, params: List[str]):
+        """
+        aider /drop
+        """
+        params = [params] if isinstance(params, str) else params
+        if self.coder is None or self.running:
+            for item in params:
+                if item in self.waiting_add_files:
+                    self.waiting_add_files.remove(item)
+                if item in self.waiting_read_files:
+                    self.waiting_read_files.remove(item)
+                self.waiting_drop_files.append(item)
+            return "waiting", None
+
+        args = " ".join(params)
+        self.coder.commands.cmd_drop(args)
+        return "drop file success", None
+
+    def method_clear(self, params):
+        """
+        aider /clear
+        """
+        if not self.coder:
+            return None, None
+        if self.running:
+            return None, {"code": 32603, "message": "Server is running"}
+        self.coder.commands.cmd_clear(params)
+        return "clear success", None
+
+    def method_reset(self, params):
+        """
+        aider /reset
+        """
+        if not self.coder:
+            return None, None
+        if self.running:
+            return None, {"code": 32603, "message": "Server is running"}
+        self.coder.commands.cmd_reset(params)
+        return "reset success", None
+
+    def method_load(self, params: str):
+        """
+        aider /load, params is file path
+        """
+        if not self.coder:
+            return None, {"code": 32603, "message": "CoderNotInit"}
+        if self.running:
+            return None, {"code": 32603, "message": "Server is running"}
+        file_path = params
+        self.coder.commands.cmd_load(file_path)
+        return "load session success", None
+
+    def method_exchange_files(self, params):
+        """
+        Exchange files
+        """
+        if not self.coder:
+            return None, {"code": 32603, "message": "CoderNotInit"}
+        if self.running:
+            return None, {"code": 32603, "message": "Server is running"}
+        added_files = list(self.coder.get_inchat_relative_files())
+        cmd = Commands(self.coder.io, self.coder)
+        args = " ".join(params)
+        cmd.cmd_drop(args)
+        for file_path in params:
+            cmd.cmd_drop(file_path)
+            if file_path in added_files:
+                cmd.cmd_read_only(file_path)
+            else:
+                cmd.cmd_add(file_path)
+        return "exchange file success", None
+
+    def method_get_history(self, params):
+        """
+        get history command
+        """
+        if not self.coder:
+            return [], {"code": 32603, "message": "CoderNotInit"}
+
+        history = self.coder.io.get_input_history()
+        chat_histories = []
+        multi_lines = []
+        for row in history:
+            if row.endswith("}"):
+                multi_lines = [row.rstrip("}")] if row.rstrip("}") else []
+                continue
+            row = row.lstrip("{")
+            if row.startswith(("/code ", "/ask ", "/architect ")):
+                prefix, content = row.split(" ", 1)
+                multi_lines.insert(0, content)
+                chat_histories.append(
+                    {
+                        "cmd": prefix,
+                        "content": "\n".join(multi_lines),
+                    }
+                )
+                multi_lines = []
+            else:
+                multi_lines.insert(0, row)
+            if len(chat_histories) > 50:
+                break
+        return chat_histories, None
+
+    def method_get_announcements(self, params):
+        """
+        Get announcements and settings content
+        """
+        if not self.coder:
+            return [], None
+
+        lines = self.coder.get_announcements()
+        return lines, None
+
+    def method_notify(self, params):
+        """
+        Get next notification from queue
+        """
+        return self.notification_queue.get(block=True), None
+
+    def method_process_status(self, params) -> Tuple[dict, Optional[ErrorData]]:
+        if self.coder is not None:
+            self.add_notify_message(
+                {"type": self.CHUNK_TYPE_AIDER_START, "message": "aider started"}
+            )
+        self.exit_event.wait()
+        return {"message": "exit"}, None
+
+    def method_fix_diagnostic(self, params: List[FileDiagnostics]):
+        if not self.coder:
+            raise
+        if not params:
+            return "", None
+        self.__class__.diagnostics = params
+        return "", None
+
+    @classmethod
+    def handle_fix_diagnostic(cls):
+        if not cls.coder:
+            raise
+        if not cls.diagnostics:
+            return
+        lint_coder = cls.coder.clone(
+            # Clear the chat history, fnames
+            cur_messages=[],
+            done_messages=[],
+            fnames=None,
+        )
+        linter = cls.coder.linter
+        cls.running = False
+        cls.handle_process_start()
+        for item in cls.diagnostics:
+            fname = item["fname"]
+            rel_fname = linter.get_rel_fname(fname)
+            lines = set()
+            try:
+                file_content = Path(fname).read_text(
+                    encoding=linter.encoding, errors="replace"
+                )
+            except OSError as err:
+                print(f"Unable to read {fname}: {err}")
+            res = "# Fix any errors below, if possible.\n\n"
+            for diagnostic in item["diagnostics"]:
+                code, message = diagnostic.get("code"), diagnostic.get("message")
+                lnum, col = diagnostic.get("lnum"), diagnostic.get("col")
+                end_lnum = diagnostic.get("end_lnum")
+                res += f"{fname}:{lnum}:{col}: {code}: {message}\n"
+                res += "\n"
+                lines.update(range(lnum, end_lnum + 1))
+            res += tree_context(rel_fname, file_content, lines)
+
+            cls.coder.io.tool_output(res)
+            lint_coder.add_rel_fname(fname)
+            lint_coder.run(res)
+            lint_coder.abs_fnames = set()
+        cls.running = False
+        cls.handle_cmd_complete("fix-diagnostic")
+
+    @classmethod
+    def handle_process_start(cls):
+        cls.add_notify_message(
+            {"type": cls.CHUNK_TYPE_AIDER_START, "message": "aider started"}
+        )
+
+    @classmethod
+    def handle_cmd_start(cls, message: Optional[str] = None) -> int:
+        """
+        Before chat
+        """
+        log.info("handle cmd: %s", message)
+        cls.running = True
+        if message:
+            cls.add_notify_message(
+                {
+                    "type": cls.CHUNK_TYPE_CMD_START,
+                    "message": f"{cls._get_cmd_from_message(message)} start",
+                }
+            )
+        # Create a temporary directory and record it in change_files, and clear file_paths
+        temp_dir = tempfile.mkdtemp()
+        cls.change_files["before_tmp_dir"] = temp_dir
+        cls.change_files["files"].clear()
+        return len(cls.output_history)
+
+    @classmethod
+    def handle_cmd_complete(
+        cls, message: Optional[str] = None, output_idx: Optional[int] = None
+    ):
+        """
+        handle chat process complete
+        """
+        log.info(
+            "handle_cmd_complete: %s, output_idx: %s",
+            message,
+            output_idx,
+            stack_info=True,
+        )
+        assert cls.coder is not None
+        after_tmp_dir = tempfile.mkdtemp()
+        after_tmp_map = copy_files_to_dir(
+            [file["path"] for file in cls.change_files["files"]],
+            after_tmp_dir,
+        )
+        modified_info = [
+            {
+                "path": file["path"],
+                "abs_path": cls.coder.abs_root_path(file["path"]),
+                "before_path": file.get("before_path"),
+                "after_path": after_tmp_map.get(file["path"]),
+            }
+            for file in cls.change_files["files"]
+        ]
+        cls.running = False
+        res_msg = ""
+        if message and output_idx is not None:
+            message = message.strip()
+            command = cls._get_cmd_from_message(message)
+            if command == "/commit":
+                for msg in cls.output_history[output_idx:]:
+                    if msg.startswith("Commit "):
+                        res_msg = msg
+                        break
+            elif command in ("/ask", "/architect", "/code", "/lint"):
+                res_msg = f"{command} complete"
+            else:
+                res_msg = "complete"
+        cls.add_notify_message(
+            {
+                "type": cls.CHUNK_TYPE_CMD_COMPLETE,
+                "modified_info": modified_info,
+                "message": res_msg,
+            }
+        )
+        cls.handle_cache_files()
+
+    @classmethod
+    def add_notify_message(cls, data):
+        cls.notification_queue.put(data)
+
+    @classmethod
+    def handle_cache_files(cls):
+        if cls.waiting_add_files:
+            cls().method_add_files(cls.waiting_add_files)
+            cls.waiting_add_files.clear()
+        if cls.waiting_read_files:
+            cls().method_read_files(cls.waiting_read_files)
+            cls.waiting_read_files.clear()
+        if cls.waiting_drop_files:
+            cls().method_drop(cls.waiting_drop_files)
+            cls.waiting_drop_files.clear()
+
+    @classmethod
+    def _get_cmd_from_message(cls, message: str) -> str:
+        """
+        Extract the command from the message.
+        """
+        if message:
+            return message.split(" ", 1)[0] if " " in message else message
+        return ""
+
+    def method_exit(self, params):
+        """
+        退出服务器
+        """
+        os._exit(0)
+
+    def method_save(self, params: str):
+        """
+        Save session command
+        """
+        if not self.coder:
+            return None, {"code": 32603, "message": "CoderNotInit"}
+        if self.__class__.running:
+            return None, {"code": 32603, "message": "Server is running"}
+
+        file_path = params
+        dir_path = os.path.dirname(file_path)
+
+        if dir_path and not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+
+        self.coder.commands.cmd_save(file_path)
+        return "save session success", None
+
+    def method_list_models(self, parmas):
+        """
+        list chat models
+        """
+        chat_models = set()
+        for model, attrs in litellm.model_cost.items():
+            model = model.lower()
+            if attrs.get("mode") != "chat":
+                continue
+            if "litellm_provider" in attrs:
+                provider = attrs.get("litellm_provider").lower() + "/"
+                fq_model = model if model.startswith(provider) else provider + model
+            else:
+                fq_model = model
+            chat_models.add(fq_model)
+        return sorted(chat_models), None
+
+    @classmethod
+    def before_confirm(
+        cls,
+        question,
+        *args,
+        default="y",
+        subject=None,
+        explicit_yes_required=False,
+        group=None,
+        allow_never=False,
+    ):
+        if not cls.running or (cls.coder and cls.coder.io.yes):
+            return
+
+        options = [
+            {"label": "(Y)es", "value": "y"},
+            {"label": "(N)o", "value": "n"},
+        ]
+        if group:
+            if not explicit_yes_required:
+                options.append({"label": "(A)ll", "value": "a"})
+                options.append({"label": "(S)kip", "value": "s"})
+        if allow_never:
+            options.append({"label": "(D)on't ask again", "value": "d"})
+        confirm_info = {
+            "default": default,
+            "options": options,
+        }
+        if subject and "\n" in subject:
+            confirm_info["subject"] = subject.splitlines()
+        cls.add_notify_message(
+            {
+                "type": cls.CHUNK_TYPE_CONFIRM_ASK,
+                "confirm_info": dict(
+                    question=question,
+                    **confirm_info,
+                ),
+            }
+        )
+
+    @classmethod
+    def after_confirm(cls, ret, *args, **kwargs):
+        if cls.running and not (cls.coder and cls.coder.io.yes):
+            cls.add_notify_message(
+                {
+                    "type": cls.CHUNK_TYPE_CONFIRM_COMPLETE,
+                }
+            )
+
+    @classmethod
+    def before_write_text(cls, filename: str, *args, **kwargs):
+        if filename not in [file["path"] for file in cls.change_files["files"]]:
+            # Use copy_files_to_dir to copy the file to a temporary directory
+            temp_dir = cls.change_files["before_tmp_dir"]
+            file_map = copy_files_to_dir([filename], temp_dir)
+            # Add file information to change_files
+            cls.change_files["files"].append(
+                {"path": filename, "before_path": file_map.get(filename)}
+            )
+
+
+def copy_files_to_dir(file_paths, dir_path) -> Dict[str, str]:
+    """
+    Return:
+        {source_path: copy_tmp_path}
+    """
+    file_map = {}
+
+    for file_path in file_paths:
+        if not os.path.exists(file_path):
+            continue
+
+        file_name = str(file_path).replace(str(os.path.sep), "@@").replace(" ", "_")
+        dest_path = os.path.join(dir_path, file_name)
+        shutil.copy2(file_path, dest_path)
+        file_map[file_path] = dest_path
+    return file_map
