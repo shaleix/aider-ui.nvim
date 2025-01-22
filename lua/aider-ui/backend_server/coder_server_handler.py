@@ -12,6 +12,7 @@ from aider.coders import Coder
 from aider.commands import Commands
 from aider.linter import tree_context
 from aider.llm import litellm
+from backend_server.store import store
 
 log = logging.getLogger(__name__)
 
@@ -429,6 +430,10 @@ class CoderServerHandler:
         if message:
             return message.split(" ", 1)[0] if " " in message else message
         return ""
+
+    @classmethod
+    def method_chat_history(cls, params):
+        return store.chat_history, None
 
     def method_exit(self, params):
         """

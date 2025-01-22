@@ -4,6 +4,7 @@ import logging
 from aider.io import InputOutput
 
 from backend_server.coder_server_handler import CoderServerHandler
+from backend_server.store import store
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +27,19 @@ def _on_tool_output(*messages, **kwargs):
             CoderServerHandler.output_history.append(item)
 
 
+def on_append_chat_history(text, linebreak=False, blockquote=False, strip=True):
+    if blockquote:
+        if strip:
+            text = text.strip()
+        text = "> " + text
+    if linebreak:
+        if strip:
+            text = text.rstrip()
+        text = text + "  "
+    for line in text.split("\n"):
+        store.chat_history.append(line)
+
+
 def setup_listeners():
     InputOutput.tool_output = listener(InputOutput.tool_output, _on_tool_output)
     InputOutput.confirm_ask = listener(
@@ -36,4 +50,6 @@ def setup_listeners():
     InputOutput.write_text = listener(
         InputOutput.write_text, CoderServerHandler.before_write_text
     )
-
+    InputOutput.append_chat_history = listener(
+        InputOutput.append_chat_history, on_append_chat_history
+    )

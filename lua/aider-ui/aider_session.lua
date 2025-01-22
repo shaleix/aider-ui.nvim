@@ -382,6 +382,21 @@ function Session:get_input_history(callback)
   client:send("get_history", {})
 end
 
+---@param callback? handle_res
+function Session:chat_history(callback)
+  local client = self:get_client()
+  client:connect(function(res, method, params)
+    if res.error and res.error ~= nil then
+      utils.err(vim.inspect(res.error), "chat_history error (Aider)")
+    else
+      if callback ~= nil then
+        callback(res.result)
+      end
+    end
+  end)
+  client:send("chat_history", {})
+end
+
 ---@param message string
 function Session:git_commit(message)
   self:send_cmd("/commit " .. message)
