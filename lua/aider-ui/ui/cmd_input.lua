@@ -2,6 +2,7 @@ local M = {}
 local mapOpts = { noremap = true }
 local sessions_manager = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
+local common = require("aider-ui.ui.common")
 
 M.cmd_popup = function()
   local session = sessions_manager.current_session()
@@ -10,7 +11,6 @@ M.cmd_popup = function()
     return
   end
 
-  local history_bufnr = vim.api.nvim_create_buf(false, true)
   local Popup = require("nui.popup")
   local NuiText = require("nui.text")
   local Input = require("nui.input")
@@ -35,7 +35,6 @@ M.cmd_popup = function()
         top_align = "center",
       },
     },
-    buf = history_bufnr,
     win_options = {
       wrap = true,
       linebreak = true,
@@ -109,18 +108,8 @@ M.cmd_popup = function()
   original_winid = vim.api.nvim_get_current_win()
 
   layout:mount()
-  session:chat_history(function(history)
-    if not history then
-      return
-    end
-    vim.api.nvim_buf_set_lines(top_popup.bufnr, 0, -1, false, history)
-  end)
 
-  vim.defer_fn(function()
-    local lnum = vim.api.nvim_buf_line_count(top_popup.bufnr)
-    vim.api.nvim_win_set_cursor(top_popup.winid, { lnum, 0 })
-    vim.api.nvim_set_option_value("conceallevel", 2, { win = top_popup.winid})
-  end, 100)
+  common.display_session_chat_history(session, top_popup.bufnr, top_popup.winid)
 end
 
 return M

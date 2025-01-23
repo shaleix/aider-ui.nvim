@@ -50,4 +50,15 @@ M.input = function(prompt, on_submit, opts)
   popup:mount()
 end
 
+M.display_session_chat_history = function(session, bufnr, winid)
+  session:chat_history(function(history)
+    if not history then
+      return
+    end
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, history)
+    local lnum = vim.api.nvim_buf_line_count(bufnr)
+    vim.api.nvim_win_set_cursor(winid, { lnum, 0 })
+  end)
+end
+
 return M

@@ -1,18 +1,25 @@
+local Layout = require("nui.layout")
 local nui_popup = require("nui.popup")
 local event = require("nui.utils.autocmd").event
-local utils = require("aider-ui.utils")
+local common = require("aider-ui.ui.common")
 local events = require("aider-ui.events")
+local utils = require("aider-ui.utils")
 
 local M = {}
 
 local sessions_manager = require("aider-ui.aider_sessions_manager")
 local configs = require("aider-ui.config").options
 
--- Setup auto confirm pop handler
+-- Setup auto confirmation popup handler
 function M.setup()
   if configs.auto_pop_confirm then
-    events.AskConfirm:add_handler(function(session)
-      M.show_confirm()
+    events.AskConfirm:add_handler(function()
+      for _, session in ipairs(sessions_manager.sessions) do
+        if session.need_confirm and session.confirm_info then
+          M.show_confirm(session)
+          break
+        end
+      end
     end, "auto_confirm_pop")
   end
 end
@@ -21,7 +28,7 @@ function M.toggle_aider_confirm()
   local sessions = sessions_manager.sessions
   for _, session in ipairs(sessions) do
     if session.need_confirm and session.confirm_info then
-      M.show_confirm()
+      M.show_confirm(session)
       return
     end
   end
@@ -50,7 +57,7 @@ local function render_confirm(session, bufnr, result)
   table.insert(lines, NuiLine({ NuiText("") }))
 
   -- Add options
-  local option_line = NuiLine({NuiText("> ", "AiderWarning")})
+  local option_line = NuiLine({ NuiText("> ", "AiderWarning") })
   for _, opt in ipairs(session.confirm_info.options or {}) do
     option_line:append(NuiText(" " .. opt.label .. " ", result == opt.value and "AiderH1" or ""))
     option_line:append(NuiText(" "))
@@ -61,16 +68,8 @@ local function render_confirm(session, bufnr, result)
   end
 end
 
-function M.show_confirm()
-  local sessions = sessions_manager.sessions
-  local session_with_confirm = nil
-
-  for _, session in ipairs(sessions) do
-    if session.need_confirm and session.confirm_info then
-      session_with_confirm = session
-      break
-    end
-  end
+function M.show_confirm(session_with_confirm)
+  local chat_history_popup, layout
 
   if not session_with_confirm then
     utils.info("No session requires confirmation")
@@ -99,10 +98,8 @@ function M.show_confirm()
   local popup_width = math.min(math.max(max_line_length, 60), 100) -- min 50, max 90
   local popup_height = subject_lines + 4 -- 4 = question + empty line + options + padding
 
+  -- Create confirmation popup as top part of layout
   local popup = nui_popup({
-    enter = true,
-    relative = "editor",
-    position = { row = "20%", col = "50%" },
     focusable = true,
     border = {
       style = "rounded",
@@ -118,7 +115,7 @@ function M.show_confirm()
       },
     },
     size = {
-      width = popup_width,
+      -- width = popup_width,
       height = popup_height,
     },
     -- win_options = {
@@ -126,10 +123,21 @@ function M.show_confirm()
     -- },
   })
 
+  -- Initialize layout
+  local boxes = {
+    Layout.Box(popup, { size = "100%" }),
+  }
+  layout = Layout({
+    position = { row = "20%", col = "50%" },
+    relative = "editor",
+    size = {
+      width = popup_width,
+      height = popup_height + 3, -- Adjust overall height
+    },
+  }, Layout.Box(boxes, { dir = "col" }))
+
   local function on_confirm(result)
-    if session_with_confirm then
-      session_with_confirm:send_cmd(result)
-    end
+    session_with_confirm:send_cmd(result)
   end
 
   -- Keymaps
@@ -142,13 +150,12 @@ function M.show_confirm()
     end)
   end
 
-  popup:map("n", "<Esc>", function()
-    popup:unmount()
-  end)
+  local function unmount_all()
+    layout:unmount()
+  end
 
-  popup:map("n", "q", function()
-    popup:unmount()
-  end)
+  popup:map("n", "<Esc>", unmount_all)
+  popup:map("n", "q", unmount_all)
 
   popup:map("n", "<Tab>", function()
     -- Find current index using for loop
@@ -168,15 +175,57 @@ function M.show_confirm()
     popup:unmount()
   end)
 
-  -- Show popup
-  popup:mount()
+  popup:map("n", "t", function()
+    if chat_history_popup then
+      return
+    end
+    -- Create history popup (not mounted separately)
+    chat_history_popup = nui_popup({
+      border = {
+        style = "rounded",
+        text = {
+          top = " Chat History ",
+          top_align = "center",
+        },
+      },
+      buf_options = {
+        filetype = "markdown",
+      },
+    })
+
+    local editor_height = vim.o.lines
+    local layout_height = math.floor(editor_height * 0.7)
+    local popup_size = (popup_height + 3) / layout_height
+
+    layout:update(
+      {
+        size = {
+          width = popup_width,
+          height = layout_height,
+        },
+      },
+      Layout.Box({
+        Layout.Box(popup, {
+          size = popup_size,
+        }),
+        Layout.Box(chat_history_popup, {
+          size = 1 - popup_size,
+        }),
+      }, { dir = "col" })
+    )
+
+    -- Render history content
+    common.display_session_chat_history(session_with_confirm, chat_history_popup.bufnr, chat_history_popup.winid)
+  end)
+
+  -- Mount layout first then the popup
+  layout:mount()
+  vim.api.nvim_set_current_win(popup.winid)
 
   render_confirm(session_with_confirm, popup.bufnr, current_value)
 
-  -- Auto close when leaving
-  popup:on(event.BufLeave, function()
-    popup:unmount()
-  end)
+  -- Auto close when leaving layout
+  popup:on(event.BufLeave, unmount_all)
 end
 
 return M
