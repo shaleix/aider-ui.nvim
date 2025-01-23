@@ -9,6 +9,8 @@ M.cmd_popup = function()
     utils.err("No active session.")
     return
   end
+
+  local history_bufnr = vim.api.nvim_create_buf(false, true)
   local Popup = require("nui.popup")
   local NuiText = require("nui.text")
   local Input = require("nui.input")
@@ -33,7 +35,14 @@ M.cmd_popup = function()
         top_align = "center",
       },
     },
-    win_options = {},
+    buf = history_bufnr,
+    win_options = {
+      wrap = true,
+      linebreak = true,
+    },
+    buf_options = {
+      filetype = "markdown",
+    },
   })
 
   local bottom_input = Input({
@@ -100,10 +109,18 @@ M.cmd_popup = function()
   original_winid = vim.api.nvim_get_current_win()
 
   layout:mount()
-  vim.api.nvim_win_set_buf(top_popup.winid, session.bufnr)
-  -- scroll bottom
-  local lnum = vim.api.nvim_buf_line_count(session.bufnr)
-  vim.api.nvim_win_set_cursor(top_popup.winid, { lnum, 0 })
+  session:chat_history(function(history)
+    if not history then
+      return
+    end
+    vim.api.nvim_buf_set_lines(top_popup.bufnr, 0, -1, false, history)
+  end)
+
+  vim.defer_fn(function()
+    local lnum = vim.api.nvim_buf_line_count(top_popup.bufnr)
+    vim.api.nvim_win_set_cursor(top_popup.winid, { lnum, 0 })
+    vim.api.nvim_set_option_value("conceallevel", 2, { win = top_popup.winid})
+  end, 100)
 end
 
 return M
