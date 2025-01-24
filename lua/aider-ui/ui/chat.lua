@@ -1,4 +1,5 @@
 local M = {}
+local common = require("aider-ui.ui.common")
 local files = require("aider-ui.ui.files")
 local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
@@ -20,14 +21,15 @@ local function popup_input(prompt, on_submit, opts, title)
     },
     border = {
       padding = {
-        left = 1,
-        right = 1,
+        top = 1,
+        left = 2,
+        right = 2,
       },
-      style = "rounded",
+      style = { " ", " ", " ", " ", " ", " ", " ", " " },
       text = {
         top = NuiText(title or "", "AiderPromptTitle"),
         top_align = "center",
-        bottom = NuiText("[dd: drop file, c: switch add/read]", "AiderComment"),
+        bottom = NuiText("dd: drop file, c: switch add/read", "AiderComment"),
         bottom_align = "right",
       },
     },
@@ -49,35 +51,41 @@ local function popup_input(prompt, on_submit, opts, title)
     position = "50%",
     size = {
       width = 80,
-      height = 4,
+      height = 5,
     },
     enter = true,
     border = {
       padding = {
-        left = 1,
-        right = 1,
+        left = 2,
+        right = 2,
+        top = 0,
+        bottom = 1,
       },
-      style = "rounded",
+      style = { " ", " ", " ", " ", " ", " ", " ", " " },
       text = {
-        top = NuiText(prompt, "AiderInfo"),
+        top = NuiText(" " .. prompt, "AiderInfo"),
         top_align = "left",
-        bottom = NuiText("[Ctrl + Enter: submit | Ctrl + t: insert cursor path]", "AiderComment"),
+        bottom = NuiText("Ctrl + Enter: submit | Ctrl + t: insert cursor path", "AiderComment"),
         bottom_align = "right",
       },
-      -- highlight = "Grey",
     },
     buf_options = {
       filetype = "aider-input",
     },
     win_options = {
-      -- winhighlight = "NormalFloat:Normal,Normal:Normal",
-      -- winhighlight = "Normal:Normal,FloatBorder:Normal",
+      winhighlight = "Normal:AiderInputFloatNormal,FloatBorder:AiderInputFloatBorder",
+    },
+  })
+  local split = Popup({
+    focusable = false,
+    win_options = {
+      winhighlight = "Normal:AiderInputFloatNormal,FloatBorder:AiderInputFloatBorder",
     },
   })
 
   local layout = Layout(
     {
-      position = "45%",
+      position = "50%",
       relative = "editor",
       size = {
         width = 80,
@@ -86,7 +94,8 @@ local function popup_input(prompt, on_submit, opts, title)
     },
     Layout.Box({
       Layout.Box(top_popup, { grow = 1 }),
-      Layout.Box(bottom_popup, { size = { height = 6 } }),
+      Layout.Box(split, { size = { height = 1 } }),
+      Layout.Box(bottom_popup, { size = { height = 7 } }),
     }, { dir = "col" })
   )
 
@@ -176,6 +185,7 @@ local function popup_input(prompt, on_submit, opts, title)
   end, mapOpts)
 
   layout:mount()
+  common.dim(bottom_popup.bufnr)
 
   local lines = {}
   if type(default_value) == "string" then

@@ -11,6 +11,8 @@ M.colors = {
   Folder = "DiagnosticWarn",
   Button = "CursorLine",
   ButtonActive = "Visual",
+  InputFloatBorder = "Normal",
+  InputFloatNormal = "Normal",
 }
 
 M.did_setup = false

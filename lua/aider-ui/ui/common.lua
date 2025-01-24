@@ -16,7 +16,10 @@ M.input = function(prompt, on_submit, opts)
       height = 2,
     },
     border = {
-      style = "rounded",
+      padding = {
+        left = 1,
+      },
+      style = { " ", " ", " ", " ", " ", " ", " ", " " },
       text = {
         top = title,
         top_align = "center",
@@ -24,7 +27,7 @@ M.input = function(prompt, on_submit, opts)
       },
     },
     win_options = {
-      winhighlight = "NormalFloat:Normal,Normal:Normal",
+      winhighlight = "Normal:AiderInputFloatNormal,FloatBorder:AiderInputFloatBorder",
     },
   }, {
     prompt = prompt,
@@ -48,6 +51,7 @@ M.input = function(prompt, on_submit, opts)
     popup:unmount()
   end, mapOpts)
   popup:mount()
+  M.dim(popup.bufnr)
 end
 
 M.display_session_chat_history = function(session, bufnr, winid)
@@ -59,6 +63,46 @@ M.display_session_chat_history = function(session, bufnr, winid)
     local lnum = vim.api.nvim_buf_line_count(bufnr)
     vim.api.nvim_win_set_cursor(winid, { lnum, 0 })
   end)
+end
+
+
+local blend = 50
+
+M.dim = function(bufnr)
+  local backdrop_name = "AiderUiBackdrop"
+
+  local zindex = 50
+
+  local backdrop_bufnr = vim.api.nvim_create_buf(false, true)
+  local winnr = vim.api.nvim_open_win(backdrop_bufnr, false, {
+    relative = "editor",
+    row = 0,
+    col = 0,
+    width = vim.o.columns,
+    height = vim.o.lines,
+    focusable = false,
+    style = "minimal",
+    zindex = zindex - 1, -- ensure it's below the reference window
+  })
+
+  vim.api.nvim_set_hl(0, backdrop_name, { bg = "#000000", default = true })
+  vim.wo[winnr].winhighlight = "Normal:" .. backdrop_name
+  vim.wo[winnr].winblend = blend
+  vim.bo[backdrop_bufnr].buftype = "nofile"
+
+  -- close backdrop when the reference buffer is closed
+  vim.api.nvim_create_autocmd({ "WinClosed" }, {
+    once = true,
+    buffer = bufnr,
+    callback = function()
+      if vim.api.nvim_win_is_valid(winnr) then
+        vim.api.nvim_win_close(winnr, true)
+      end
+      if vim.api.nvim_buf_is_valid(backdrop_bufnr) then
+        vim.api.nvim_buf_delete(backdrop_bufnr, { force = true })
+      end
+    end,
+  })
 end
 
 return M
