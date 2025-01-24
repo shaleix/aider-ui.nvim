@@ -42,7 +42,7 @@ local function render_confirm(session, bufnr, result)
   local lines = {}
 
   -- Add subject line if present
-  if session.confirm_info.subject then
+  if session.confirm_info.subject and #session.confirm_info.subject > 0 then
     for _, line in ipairs(session.confirm_info.subject) do
       table.insert(lines, NuiLine({ NuiText(line, "AiderWarning") }))
     end
@@ -83,8 +83,8 @@ function M.show_confirm(session_with_confirm)
   local max_line_length = 0
 
   -- Calculate height and max line length
-  if session_with_confirm.confirm_info.subject ~= nil then
-    subject_lines = #session_with_confirm.confirm_info.subject
+  if session_with_confirm.confirm_info.subject ~= nil and  #session_with_confirm.confirm_info.subject > 0 then
+    subject_lines = #session_with_confirm.confirm_info.subject + 1
     max_line_length = math.max(max_line_length, #session_with_confirm.confirm_info.subject)
   end
   if session_with_confirm.confirm_info.question ~= nil then
@@ -95,21 +95,21 @@ function M.show_confirm(session_with_confirm)
   max_line_length = max_line_length + 10
 
   -- Set width constraints
-  local popup_width = math.min(math.max(max_line_length, 60), 100) -- min 50, max 90
+  local popup_width = math.min(math.max(max_line_length, 70), 120) -- min 50, max 90
   local popup_height = subject_lines + 4 -- 4 = question + empty line + options + padding
 
   -- Create confirmation popup as top part of layout
   local popup = nui_popup({
     focusable = true,
     border = {
-      style = "rounded",
+      style = { " ", " ", " ", " ", " ", " ", " ", " " },
       text = {
         top = " Aider: " .. session_with_confirm.name .. " ",
         top_align = "center",
       },
       padding = {
         top = 1,
-        bottom = 1,
+        bottom = 0,
         left = 2,
         right = 2,
       },
@@ -118,9 +118,9 @@ function M.show_confirm(session_with_confirm)
       -- width = popup_width,
       height = popup_height,
     },
-    -- win_options = {
-    --   winhighlight = "Normal:Normal,FloatBorder:Normal",
-    -- },
+    win_options = {
+      winhighlight = "Normal:AiderInputFloatNormal,FloatBorder:AiderInputFloatBorder",
+    },
   })
 
   -- Initialize layout
@@ -182,7 +182,7 @@ function M.show_confirm(session_with_confirm)
     -- Create history popup (not mounted separately)
     chat_history_popup = nui_popup({
       border = {
-        style = "rounded",
+        style = { " ", " ", " ", " ", " ", " ", " ", " " },
         text = {
           top = " Chat History ",
           top_align = "center",
@@ -193,23 +193,21 @@ function M.show_confirm(session_with_confirm)
       },
     })
 
-    local editor_height = vim.o.lines
-    local layout_height = math.floor(editor_height * 0.7)
-    local popup_size = (popup_height + 3) / layout_height
-
     layout:update(
       {
         size = {
           width = popup_width,
-          height = layout_height,
+          height = 35,
         },
       },
       Layout.Box({
         Layout.Box(popup, {
-          size = popup_size,
+          size = {
+            height = popup_height + 3,
+          },
         }),
         Layout.Box(chat_history_popup, {
-          size = 1 - popup_size,
+          grow = 1,
         }),
       }, { dir = "col" })
     )
@@ -220,6 +218,7 @@ function M.show_confirm(session_with_confirm)
 
   -- Mount layout first then the popup
   layout:mount()
+  common.dim(popup.bufnr)
   vim.api.nvim_set_current_win(popup.winid)
 
   render_confirm(session_with_confirm, popup.bufnr, current_value)
