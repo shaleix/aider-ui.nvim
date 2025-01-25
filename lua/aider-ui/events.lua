@@ -44,4 +44,5 @@ return {
   ChatCompleted = Event:new(),
   GetOutput = Event:new({ throttle_time = 100 }),
   AskConfirm = Event:new(),
+  SessionExit = Event:new(),
 }

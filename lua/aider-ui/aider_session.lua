@@ -74,6 +74,7 @@ local function create(session_name, bufnr, opts)
     on_started = opts.on_started,
     dir = cwd or ".",
     watch_files = watch_files,
+    exited = false,
   }
   local linsten_process = function()
     local client = s:get_client()
@@ -82,6 +83,9 @@ local function create(session_name, bufnr, opts)
         pcall(function (result)
           s:handle_notify(result)
         end, res.result)
+      end
+      if s.exited then
+        return
       end
       client:send("notify", {})
     end)
@@ -188,6 +192,12 @@ function Session:handle_notify(res)
       end
       utils.reload_buffers(files)
     end
+  elseif res.type == "aider_exit" then
+    self.processing = false
+    self.need_confirm = false
+    self.exited = true
+    events.SessionExit:emit({ session = self })
+    utils.info("Aider session exited", "Aider")
   end
 end
 

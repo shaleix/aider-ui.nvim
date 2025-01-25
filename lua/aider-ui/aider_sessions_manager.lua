@@ -89,9 +89,6 @@ function M.create_session(new_session_name, on_started, cwd, watch_files)
     on_started = on_started,
     cwd = cwd,
     watch_files = watch_files,
-    on_exit = function()
-      M.delete_session(new_session_name)
-    end,
   })
   table.insert(M.sessions, current_session)
   M.current_job_id = current_session.job_id
@@ -109,7 +106,8 @@ local function on_session_changed()
   local ui = require("aider-ui.ui.side_split")
   if #M.sessions == 0 then
     -- create new session
-    return ui.show_aider_split()
+    ui.aider_hide()
+    return nil
   end
   if ui.is_split_visible() then
     return ui.show_aider_split()

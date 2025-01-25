@@ -3,9 +3,8 @@ import logging
 import os
 import shutil
 import tempfile
-import threading
+import time
 from pathlib import Path
-from queue import Queue
 from typing import Dict, List, Optional, Tuple, TypedDict
 
 from aider.coders import Coder
@@ -28,7 +27,6 @@ class CoderServerHandler:
     waiting_add_files = []
     waiting_read_files = []
     waiting_drop_files = []
-    exit_event = threading.Event()
     change_files = {
         "before_tmp_dir": "",
         "files": [],  # [{'path': path, 'before_path': path_tmp_map.get(path) }]
@@ -39,6 +37,7 @@ class CoderServerHandler:
     CHUNK_TYPE_CMD_COMPLETE = "cmd_complete"
     CHUNK_TYPE_CONFIRM_ASK = "confirm_ask"
     CHUNK_TYPE_CONFIRM_COMPLETE = "confirm_complete"
+    CHUNK_TYPE_AIDER_EXIT = "aider_exit"
 
     def handle_message(self, message):
         """
@@ -237,14 +236,6 @@ class CoderServerHandler:
         """
         return store.notification_queue.get(block=True), None  # 改为从store获取
 
-    def method_process_status(self, params) -> Tuple[dict, Optional[ErrorData]]:
-        if self.coder is not None:
-            self.add_notify_message(
-                {"type": self.CHUNK_TYPE_AIDER_START, "message": "aider started"}
-            )
-        self.exit_event.wait()
-        return {"message": "exit"}, None
-
     def method_fix_diagnostic(self, params: List[FileDiagnostics]):
         if not self.coder:
             raise
@@ -297,7 +288,7 @@ class CoderServerHandler:
 
     @classmethod
     def handle_process_start(cls):
-        cls.add_notify_message(
+        store.add_notify_message(
             {"type": cls.CHUNK_TYPE_AIDER_START, "message": "aider started"}
         )
 
@@ -309,7 +300,7 @@ class CoderServerHandler:
         log.info("handle cmd: %s", message)
         cls.running = True
         if message:
-            cls.add_notify_message(
+            store.add_notify_message(
                 {
                     "type": cls.CHUNK_TYPE_CMD_START,
                     "message": f"{cls._get_cmd_from_message(message)} start",
@@ -363,7 +354,7 @@ class CoderServerHandler:
                 res_msg = f"{command} complete"
             else:
                 res_msg = "complete"
-        cls.add_notify_message(
+        store.add_notify_message(
             {
                 "type": cls.CHUNK_TYPE_CMD_COMPLETE,
                 "modified_info": modified_info,
@@ -371,10 +362,6 @@ class CoderServerHandler:
             }
         )
         cls.handle_cache_files()
-
-    @classmethod
-    def add_notify_message(cls, data):
-        store.notification_queue.put(data)  # 改为使用store中的队列
 
     @classmethod
     def handle_cache_files(cls):
@@ -405,6 +392,10 @@ class CoderServerHandler:
         """
         退出服务器
         """
+        store.add_notify_message(
+            {"type": self.CHUNK_TYPE_AIDER_EXIT, "message": "aider exited"}
+        )
+        time.sleep(0.1)
         os._exit(0)
 
     def method_save(self, params: str):
@@ -472,7 +463,7 @@ class CoderServerHandler:
         }
         if subject and "\n" in subject:
             confirm_info["subject"] = subject.splitlines()
-        cls.add_notify_message(
+        store.add_notify_message(
             {
                 "type": cls.CHUNK_TYPE_CONFIRM_ASK,
                 "confirm_info": dict(
@@ -485,7 +476,7 @@ class CoderServerHandler:
     @classmethod
     def after_confirm(cls, ret, *args, **kwargs):
         if cls.running and not (cls.coder and cls.coder.io.yes):
-            cls.add_notify_message(
+            store.add_notify_message(
                 {
                     "type": cls.CHUNK_TYPE_CONFIRM_COMPLETE,
                 }

@@ -39,5 +39,8 @@ class Store:
         self.diagnostics: List[FileDiagnostics] = []
         self.notification_queue = Queue(9999)  # 添加队列到Store
 
+    def add_notify_message(self, data):
+        self.notification_queue.put(data)
+
 
 store = Store()
