@@ -24,7 +24,7 @@ def listener(func, before_call, after_call=None):
 def _on_tool_output(*messages, **kwargs):
     for item in messages:
         if isinstance(item, str):
-            CoderServerHandler.output_history.append(item)
+            store.output_history.append(item)
 
 
 def on_append_chat_history(text, linebreak=False, blockquote=False, strip=True):

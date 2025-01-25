@@ -53,7 +53,6 @@ class FileDiagnostics(TypedDict):
 
 class CoderServerHandler:
     coder: Optional[Coder] = None
-    output_history = []
     running = False
     waiting_add_files = []
     waiting_read_files = []
@@ -353,7 +352,7 @@ class CoderServerHandler:
         temp_dir = tempfile.mkdtemp()
         cls.change_files["before_tmp_dir"] = temp_dir
         cls.change_files["files"].clear()
-        return len(cls.output_history)
+        return len(store.output_history)
 
     @classmethod
     def handle_cmd_complete(
@@ -389,8 +388,8 @@ class CoderServerHandler:
             message = message.strip()
             command = cls._get_cmd_from_message(message)
             if command == "/commit":
-                for msg in cls.output_history[output_idx:]:
-                    if msg.startswith("Commit "):
+                for msg in store.output_history[output_idx:]:
+                    if msg.startswith("> Commit "):
                         res_msg = msg
                         break
             elif command in ("/ask", "/architect", "/code", "/lint"):
