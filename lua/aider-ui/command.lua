@@ -1,7 +1,7 @@
 local M = {}
 
 M.setup = function()
-  local history_finder = require("aider-ui.ui.history_finder")
+  local chat_history = require("aider-ui.ui.chat_history")
   local sessions_ui = require("aider-ui.ui.sessions_ui")
   local model = require("aider-ui.ui.model")
   local sessions_manager = require("aider-ui.aider_sessions_manager")
@@ -12,7 +12,7 @@ M.setup = function()
   local utils = require("aider-ui.utils")
 
   vim.api.nvim_create_user_command("AiderHistory", function()
-    history_finder.input_history_view()
+    chat_history.input_history_view()
   end, { desc = "Show Aider Chat History" })
 
   vim.api.nvim_create_user_command("AiderNewSession", function()
