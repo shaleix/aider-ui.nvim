@@ -185,7 +185,7 @@ local function popup_input(prompt, on_submit, opts, title)
   end, mapOpts)
 
   layout:mount()
-  common.dim(bottom_popup.bufnr)
+  common.dim(bottom_popup.bufnr, {"WinClosed"})
 
   local lines = {}
   if type(default_value) == "string" then

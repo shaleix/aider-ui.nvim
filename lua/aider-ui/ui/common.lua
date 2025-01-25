@@ -68,7 +68,7 @@ end
 
 local blend = 50
 
-M.dim = function(bufnr)
+M.dim = function(bufnr, events)
   local backdrop_name = "AiderUiBackdrop"
 
   local zindex = 50
@@ -89,9 +89,13 @@ M.dim = function(bufnr)
   vim.wo[winnr].winhighlight = "Normal:" .. backdrop_name
   vim.wo[winnr].winblend = blend
   vim.bo[backdrop_bufnr].buftype = "nofile"
+  local autocmd_events = { "WinClosed", "BufLeave" }
+  if events ~= nil then
+    autocmd_events = events
+  end
 
   -- close backdrop when the reference buffer is closed
-  vim.api.nvim_create_autocmd({ "WinClosed" }, {
+  vim.api.nvim_create_autocmd(autocmd_events, {
     once = true,
     buffer = bufnr,
     callback = function()
