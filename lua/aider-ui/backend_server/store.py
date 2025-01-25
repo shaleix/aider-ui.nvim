@@ -37,7 +37,14 @@ class Store:
         self.chat_history: List[str] = []
         self.output_history: List[str] = []
         self.diagnostics: List[FileDiagnostics] = []
-        self.notification_queue = Queue(9999)  # 添加队列到Store
+        self.notification_queue = Queue(9999)
+        self.waiting_add_files: List[str] = []
+        self.waiting_read_files: List[str] = []
+        self.waiting_drop_files: List[str] = []
+        self.change_files = {
+            "before_tmp_dir": "",
+            "files": [], 
+        }
 
     def add_notify_message(self, data):
         self.notification_queue.put(data)

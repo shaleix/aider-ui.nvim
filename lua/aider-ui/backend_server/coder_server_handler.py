@@ -24,13 +24,6 @@ class ErrorData(TypedDict):
 class CoderServerHandler:
     coder: Optional[Coder] = None
     running = False
-    waiting_add_files = []
-    waiting_read_files = []
-    waiting_drop_files = []
-    change_files = {
-        "before_tmp_dir": "",
-        "files": [],  # [{'path': path, 'before_path': path_tmp_map.get(path) }]
-    }
     CHUNK_TYPE_AIDER_START = "aider_start"
     CHUNK_TYPE_NOTIFY = "notify"
     CHUNK_TYPE_CMD_START = "cmd_start"
@@ -89,11 +82,11 @@ class CoderServerHandler:
         params = [params] if isinstance(params, str) else params
         if self.coder is None or self.running:
             for item in params:
-                if item in self.waiting_read_files:
-                    self.waiting_read_files.remove(item)
-                if item in self.waiting_drop_files:
-                    self.waiting_drop_files.remove(item)
-                self.waiting_add_files.append(item)
+                if item in store.waiting_read_files:
+                    store.waiting_read_files.remove(item)
+                if item in store.waiting_drop_files:
+                    store.waiting_drop_files.remove(item)
+                store.waiting_add_files.append(item)
             return "waiting", None
 
         args = " ".join(params)
@@ -107,11 +100,11 @@ class CoderServerHandler:
         params = [params] if isinstance(params, str) else params
         if self.coder is None or self.running:
             for item in params:
-                if item in self.waiting_add_files:
-                    self.waiting_add_files.remove(item)
-                if item in self.waiting_drop_files:
-                    self.waiting_drop_files.remove(item)
-                self.waiting_read_files.append(item)
+                if item in store.waiting_add_files:
+                    store.waiting_add_files.remove(item)
+                if item in store.waiting_drop_files:
+                    store.waiting_drop_files.remove(item)
+                store.waiting_read_files.append(item)
             return "waiting", None
 
         self.coder.commands.cmd_read_only(" ".join(params))
@@ -124,11 +117,11 @@ class CoderServerHandler:
         params = [params] if isinstance(params, str) else params
         if self.coder is None or self.running:
             for item in params:
-                if item in self.waiting_add_files:
-                    self.waiting_add_files.remove(item)
-                if item in self.waiting_read_files:
-                    self.waiting_read_files.remove(item)
-                self.waiting_drop_files.append(item)
+                if item in store.waiting_add_files:
+                    store.waiting_add_files.remove(item)
+                if item in store.waiting_read_files:
+                    store.waiting_read_files.remove(item)
+                store.waiting_drop_files.append(item)
             return "waiting", None
 
         args = " ".join(params)
@@ -308,8 +301,8 @@ class CoderServerHandler:
             )
         # Create a temporary directory and record it in change_files, and clear file_paths
         temp_dir = tempfile.mkdtemp()
-        cls.change_files["before_tmp_dir"] = temp_dir
-        cls.change_files["files"].clear()
+        store.change_files["before_tmp_dir"] = temp_dir
+        store.change_files["files"].clear()
         return len(store.output_history)
 
     @classmethod
@@ -328,7 +321,7 @@ class CoderServerHandler:
         assert cls.coder is not None
         after_tmp_dir = tempfile.mkdtemp()
         after_tmp_map = copy_files_to_dir(
-            [file["path"] for file in cls.change_files["files"]],
+            [file["path"] for file in store.change_files["files"]],
             after_tmp_dir,
         )
         modified_info = [
@@ -338,7 +331,7 @@ class CoderServerHandler:
                 "before_path": file.get("before_path"),
                 "after_path": after_tmp_map.get(file["path"]),
             }
-            for file in cls.change_files["files"]
+            for file in store.change_files["files"]
         ]
         cls.running = False
         res_msg = ""
@@ -365,15 +358,15 @@ class CoderServerHandler:
 
     @classmethod
     def handle_cache_files(cls):
-        if cls.waiting_add_files:
-            cls().method_add_files(cls.waiting_add_files)
-            cls.waiting_add_files.clear()
-        if cls.waiting_read_files:
-            cls().method_read_files(cls.waiting_read_files)
-            cls.waiting_read_files.clear()
-        if cls.waiting_drop_files:
-            cls().method_drop(cls.waiting_drop_files)
-            cls.waiting_drop_files.clear()
+        if store.waiting_add_files:
+            cls().method_add_files(store.waiting_add_files)
+            store.waiting_add_files.clear()
+        if store.waiting_read_files:
+            cls().method_read_files(store.waiting_read_files)
+            store.waiting_read_files.clear()
+        if store.waiting_drop_files:
+            cls().method_drop(store.waiting_drop_files)
+            store.waiting_drop_files.clear()
 
     @classmethod
     def _get_cmd_from_message(cls, message: str) -> str:
@@ -484,12 +477,12 @@ class CoderServerHandler:
 
     @classmethod
     def before_write_text(cls, filename: str, *args, **kwargs):
-        if filename not in [file["path"] for file in cls.change_files["files"]]:
+        if filename not in [file["path"] for file in store.change_files["files"]]:
             # Use copy_files_to_dir to copy the file to a temporary directory
-            temp_dir = cls.change_files["before_tmp_dir"]
+            temp_dir = store.change_files["before_tmp_dir"]
             file_map = copy_files_to_dir([filename], temp_dir)
             # Add file information to change_files
-            cls.change_files["files"].append(
+            store.change_files["files"].append(
                 {"path": filename, "before_path": file_map.get(filename)}
             )
 
