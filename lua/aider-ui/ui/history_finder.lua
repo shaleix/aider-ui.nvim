@@ -2,6 +2,7 @@ local M = {}
 local mapOpts = { noremap = true }
 local sessions_manager = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
+local common = require("aider-ui.ui.common")
 
 function M.input_history_view()
   local session = sessions_manager.current_session()
@@ -15,16 +16,20 @@ function M.input_history_view()
     relative = "editor",
     position = "50%",
     enter = true,
-    size = { width = 0.8, height = 0.8 },
+    size = { width = 0.6, height = 0.7 },
     border = {
       padding = {
-        left = 1,
-        right = 1,
+        left = 2,
+        right = 2,
+        top = 1,
+        bottom = 1,
       },
-      style = "rounded",
+      style = { " ", " ", " ", " ", " ", " ", " ", " " },
       text = {
         top = NuiText(" Aider Input History ", "AiderPromptTitle"),
         top_align = "center",
+        bottom = NuiText("Enter: open history entry | q: close", "AiderComment"),
+        bottom_align = "right",
       },
     },
     buf_options = {
@@ -50,6 +55,7 @@ function M.input_history_view()
       table.insert(content, "")
     end
     vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, content)
+    common.dim(popup.bufnr)
   end)
 
   popup:map("n", "<Enter>", function()
