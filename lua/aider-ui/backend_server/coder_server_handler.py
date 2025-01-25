@@ -12,7 +12,7 @@ from aider.coders import Coder
 from aider.commands import Commands
 from aider.linter import tree_context
 from aider.llm import litellm
-from backend_server.store import store
+from backend_server.store import FileDiagnostics, store
 
 log = logging.getLogger(__name__)
 
@@ -20,35 +20,6 @@ log = logging.getLogger(__name__)
 class ErrorData(TypedDict):
     code: int
     message: str
-
-
-# {
-#      code = "unused-local",
-#      col = 8,
-#      lnum = 17,
-#      end_col = 17,
-#      end_lnum = 17,
-#      message = "Unused local `telescope`.",
-#      namespace = 59,
-#      severity = 4,
-#      source = "Lua Diagnostics.",
-#      user_data = {
-#        lsp = {
-#          code = "unused-local"
-#        }
-#      }
-#    } }
-class Diagnostic(TypedDict):
-    code: str
-    lnum: int
-    col: int
-    end_lnum: int
-    message: str
-
-
-class FileDiagnostics(TypedDict):
-    fname: str
-    diagnostics: List[Diagnostic]
 
 
 class CoderServerHandler:
@@ -62,7 +33,6 @@ class CoderServerHandler:
         "before_tmp_dir": "",
         "files": [],  # [{'path': path, 'before_path': path_tmp_map.get(path) }]
     }
-    diagnostics: List[FileDiagnostics] = []
     lock = threading.Lock()  # 添加锁
     notification_queue = Queue(9999)
 
@@ -283,14 +253,14 @@ class CoderServerHandler:
             raise
         if not params:
             return "", None
-        self.__class__.diagnostics = params
+        store.diagnostics = params
         return "", None
 
     @classmethod
     def handle_fix_diagnostic(cls):
         if not cls.coder:
             raise
-        if not cls.diagnostics:
+        if not store.diagnostics:
             return
         lint_coder = cls.coder.clone(
             # Clear the chat history, fnames
@@ -301,7 +271,7 @@ class CoderServerHandler:
         linter = cls.coder.linter
         cls.running = False
         cls.handle_process_start()
-        for item in cls.diagnostics:
+        for item in store.diagnostics:
             fname = item["fname"]
             rel_fname = linter.get_rel_fname(fname)
             lines = set()
@@ -389,7 +359,7 @@ class CoderServerHandler:
             command = cls._get_cmd_from_message(message)
             if command == "/commit":
                 for msg in store.output_history[output_idx:]:
-                    if msg.startswith("> Commit "):
+                    if msg.startswith("Commit "):
                         res_msg = msg
                         break
             elif command in ("/ask", "/architect", "/code", "/lint"):
