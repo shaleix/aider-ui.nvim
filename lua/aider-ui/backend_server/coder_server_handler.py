@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 import logging
 import os
-import shutil
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TypedDict
+from typing import List, Optional, TypedDict
 
 from aider.commands import Commands
 from aider.linter import tree_context
 from aider.llm import litellm
+from backend_server.consts import NotifyType
 from backend_server.store import FileDiagnostics, store
+from backend_server.utils import copy_files_to_dir
 
 log = logging.getLogger(__name__)
 
@@ -21,13 +22,6 @@ class ErrorData(TypedDict):
 
 
 class CoderServerHandler:
-    CHUNK_TYPE_AIDER_START = "aider_start"
-    CHUNK_TYPE_NOTIFY = "notify"
-    CHUNK_TYPE_CMD_START = "cmd_start"
-    CHUNK_TYPE_CMD_COMPLETE = "cmd_complete"
-    CHUNK_TYPE_CONFIRM_ASK = "confirm_ask"
-    CHUNK_TYPE_CONFIRM_COMPLETE = "confirm_complete"
-    CHUNK_TYPE_AIDER_EXIT = "aider_exit"
 
     def handle_message(self, message):
         """
@@ -131,7 +125,7 @@ class CoderServerHandler:
         """
         if not store.coder:
             return None, None
-        if self.running:
+        if store.running:
             return None, {"code": 32603, "message": "Server is running"}
         store.coder.commands.cmd_clear(params)
         return "clear success", None
@@ -142,7 +136,7 @@ class CoderServerHandler:
         """
         if not store.coder:
             return None, None
-        if self.running:
+        if store.running:
             return None, {"code": 32603, "message": "Server is running"}
         store.coder.commands.cmd_reset(params)
         return "reset success", None
@@ -153,7 +147,7 @@ class CoderServerHandler:
         """
         if not store.coder:
             return None, {"code": 32603, "message": "CoderNotInit"}
-        if self.running:
+        if store.running:
             return None, {"code": 32603, "message": "Server is running"}
         file_path = params
         store.coder.commands.cmd_load(file_path)
@@ -165,7 +159,7 @@ class CoderServerHandler:
         """
         if not store.coder:
             return None, {"code": 32603, "message": "CoderNotInit"}
-        if self.running:
+        if store.running:
             return None, {"code": 32603, "message": "Server is running"}
         added_files = list(store.coder.get_inchat_relative_files())
         cmd = Commands(store.coder.io, store.coder)
@@ -280,7 +274,7 @@ class CoderServerHandler:
     @classmethod
     def handle_process_start(cls):
         store.add_notify_message(
-            {"type": cls.CHUNK_TYPE_AIDER_START, "message": "aider started"}
+            {"type": NotifyType.AIDER_START, "message": "aider started"}
         )
 
     @classmethod
@@ -293,7 +287,7 @@ class CoderServerHandler:
         if message:
             store.add_notify_message(
                 {
-                    "type": cls.CHUNK_TYPE_CMD_START,
+                    "type": NotifyType.CMD_START,
                     "message": f"{cls._get_cmd_from_message(message)} start",
                 }
             )
@@ -347,7 +341,7 @@ class CoderServerHandler:
                 res_msg = "complete"
         store.add_notify_message(
             {
-                "type": cls.CHUNK_TYPE_CMD_COMPLETE,
+                "type": NotifyType.CMD_COMPLETE,
                 "modified_info": modified_info,
                 "message": res_msg,
             }
@@ -384,7 +378,7 @@ class CoderServerHandler:
         退出服务器
         """
         store.add_notify_message(
-            {"type": self.CHUNK_TYPE_AIDER_EXIT, "message": "aider exited"}
+            {"type": NotifyType.AIDER_EXIT, "message": "aider exited"}
         )
         time.sleep(0.1)
         os._exit(0)
@@ -424,80 +418,3 @@ class CoderServerHandler:
             chat_models.add(fq_model)
         return sorted(chat_models), None
 
-    @classmethod
-    def before_confirm(
-        cls,
-        question,
-        *args,
-        default="y",
-        subject=None,
-        explicit_yes_required=False,
-        group=None,
-        allow_never=False,
-    ):
-        if not store.running or (store.coder and store.coder.io.yes):
-            return
-
-        options = [
-            {"label": "(Y)es", "value": "y"},
-            {"label": "(N)o", "value": "n"},
-        ]
-        if group:
-            if not explicit_yes_required:
-                options.append({"label": "(A)ll", "value": "a"})
-                options.append({"label": "(S)kip", "value": "s"})
-        if allow_never:
-            options.append({"label": "(D)on't ask again", "value": "d"})
-        confirm_info = {
-            "default": default,
-            "options": options,
-        }
-        if subject and "\n" in subject:
-            confirm_info["subject"] = subject.splitlines()
-        store.add_notify_message(
-            {
-                "type": cls.CHUNK_TYPE_CONFIRM_ASK,
-                "confirm_info": dict(
-                    question=question,
-                    **confirm_info,
-                ),
-            }
-        )
-
-    @classmethod
-    def after_confirm(cls, ret, *args, **kwargs):
-        if cls.running and not (store.coder and store.coder.io.yes):
-            store.add_notify_message(
-                {
-                    "type": cls.CHUNK_TYPE_CONFIRM_COMPLETE,
-                }
-            )
-
-    @classmethod
-    def before_write_text(cls, filename: str, *args, **kwargs):
-        if filename not in [file["path"] for file in store.change_files["files"]]:
-            # Use copy_files_to_dir to copy the file to a temporary directory
-            temp_dir = store.change_files["before_tmp_dir"]
-            file_map = copy_files_to_dir([filename], temp_dir)
-            # Add file information to change_files
-            store.change_files["files"].append(
-                {"path": filename, "before_path": file_map.get(filename)}
-            )
-
-
-def copy_files_to_dir(file_paths, dir_path) -> Dict[str, str]:
-    """
-    Return:
-        {source_path: copy_tmp_path}
-    """
-    file_map = {}
-
-    for file_path in file_paths:
-        if not os.path.exists(file_path):
-            continue
-
-        file_name = str(file_path).replace(str(os.path.sep), "@@").replace(" ", "_")
-        dest_path = os.path.join(dir_path, file_name)
-        shutil.copy2(file_path, dest_path)
-        file_map[file_path] = dest_path
-    return file_map
