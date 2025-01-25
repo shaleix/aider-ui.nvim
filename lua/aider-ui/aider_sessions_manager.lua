@@ -141,6 +141,31 @@ function M.next_session()
   end
 end
 
+function M.prev_session()
+  local current_index = nil
+  for i, session in ipairs(M.sessions) do
+    if session.job_id == M.current_job_id then
+      current_index = i
+      break
+    end
+  end
+
+  if current_index == nil then
+    utils.err("No active session found.")
+    return
+  end
+
+  local prev_index = (current_index - 2) % #M.sessions + 1
+  local prev_session = M.sessions[prev_index]
+
+  if prev_session then
+    M.current_job_id = prev_session.job_id
+    on_session_changed()
+  else
+    utils.err("No previous session to switch to.")
+  end
+end
+
 function M.switch_session_by_name(name)
   for _, session in ipairs(M.sessions) do
     if session.name == name then
