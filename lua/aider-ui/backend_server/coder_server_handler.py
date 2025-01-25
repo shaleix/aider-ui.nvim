@@ -7,7 +7,6 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, TypedDict
 
-from aider.coders import Coder
 from aider.commands import Commands
 from aider.linter import tree_context
 from aider.llm import litellm
@@ -22,8 +21,6 @@ class ErrorData(TypedDict):
 
 
 class CoderServerHandler:
-    coder: Optional[Coder] = None
-    running = False
     CHUNK_TYPE_AIDER_START = "aider_start"
     CHUNK_TYPE_NOTIFY = "notify"
     CHUNK_TYPE_CMD_START = "cmd_start"
@@ -62,12 +59,12 @@ class CoderServerHandler:
         """
         get add and read files
         """
-        if not self.coder:
+        if not store.coder:
             return {"added": [], "readonly": []}, None
-        inchat_files = self.coder.get_inchat_relative_files()
+        inchat_files = store.coder.get_inchat_relative_files()
         read_only_files = []
-        for abs_file_path in self.coder.abs_read_only_fnames or []:
-            rel_file_path = self.coder.get_rel_fname(abs_file_path)
+        for abs_file_path in store.coder.abs_read_only_fnames or []:
+            rel_file_path = store.coder.get_rel_fname(abs_file_path)
             read_only_files.append(rel_file_path)
 
         return {
@@ -80,7 +77,7 @@ class CoderServerHandler:
         /add params
         """
         params = [params] if isinstance(params, str) else params
-        if self.coder is None or self.running:
+        if store.coder is None or store.running:
             for item in params:
                 if item in store.waiting_read_files:
                     store.waiting_read_files.remove(item)
@@ -90,7 +87,7 @@ class CoderServerHandler:
             return "waiting", None
 
         args = " ".join(params)
-        self.coder.commands.cmd_add(args)
+        store.coder.commands.cmd_add(args)
         return "add file success", None
 
     def method_read_files(self, params: List[str]):
@@ -98,7 +95,7 @@ class CoderServerHandler:
         /read-only params
         """
         params = [params] if isinstance(params, str) else params
-        if self.coder is None or self.running:
+        if store.coder is None or store.running:
             for item in params:
                 if item in store.waiting_add_files:
                     store.waiting_add_files.remove(item)
@@ -107,7 +104,7 @@ class CoderServerHandler:
                 store.waiting_read_files.append(item)
             return "waiting", None
 
-        self.coder.commands.cmd_read_only(" ".join(params))
+        store.coder.commands.cmd_read_only(" ".join(params))
         return "read file success", None
 
     def method_drop(self, params: List[str]):
@@ -115,7 +112,7 @@ class CoderServerHandler:
         aider /drop
         """
         params = [params] if isinstance(params, str) else params
-        if self.coder is None or self.running:
+        if store.coder is None or store.running:
             for item in params:
                 if item in store.waiting_add_files:
                     store.waiting_add_files.remove(item)
@@ -125,53 +122,53 @@ class CoderServerHandler:
             return "waiting", None
 
         args = " ".join(params)
-        self.coder.commands.cmd_drop(args)
+        store.coder.commands.cmd_drop(args)
         return "drop file success", None
 
     def method_clear(self, params):
         """
         aider /clear
         """
-        if not self.coder:
+        if not store.coder:
             return None, None
         if self.running:
             return None, {"code": 32603, "message": "Server is running"}
-        self.coder.commands.cmd_clear(params)
+        store.coder.commands.cmd_clear(params)
         return "clear success", None
 
     def method_reset(self, params):
         """
         aider /reset
         """
-        if not self.coder:
+        if not store.coder:
             return None, None
         if self.running:
             return None, {"code": 32603, "message": "Server is running"}
-        self.coder.commands.cmd_reset(params)
+        store.coder.commands.cmd_reset(params)
         return "reset success", None
 
     def method_load(self, params: str):
         """
         aider /load, params is file path
         """
-        if not self.coder:
+        if not store.coder:
             return None, {"code": 32603, "message": "CoderNotInit"}
         if self.running:
             return None, {"code": 32603, "message": "Server is running"}
         file_path = params
-        self.coder.commands.cmd_load(file_path)
+        store.coder.commands.cmd_load(file_path)
         return "load session success", None
 
     def method_exchange_files(self, params):
         """
         Exchange files
         """
-        if not self.coder:
+        if not store.coder:
             return None, {"code": 32603, "message": "CoderNotInit"}
         if self.running:
             return None, {"code": 32603, "message": "Server is running"}
-        added_files = list(self.coder.get_inchat_relative_files())
-        cmd = Commands(self.coder.io, self.coder)
+        added_files = list(store.coder.get_inchat_relative_files())
+        cmd = Commands(store.coder.io, store.coder)
         args = " ".join(params)
         cmd.cmd_drop(args)
         for file_path in params:
@@ -186,10 +183,11 @@ class CoderServerHandler:
         """
         get history command
         """
-        if not self.coder:
+        if not store.coder:
             return [], {"code": 32603, "message": "CoderNotInit"}
+        
 
-        history = self.coder.io.get_input_history()
+        history = store.coder.io.get_input_history()
         chat_histories = []
         multi_lines = []
         for row in history:
@@ -217,10 +215,10 @@ class CoderServerHandler:
         """
         Get announcements and settings content
         """
-        if not self.coder:
+        if not store.coder:
             return [], None
 
-        lines = self.coder.get_announcements()
+        lines = store.coder.get_announcements()
         return lines, None
 
     def method_notify(self, params):
@@ -230,7 +228,7 @@ class CoderServerHandler:
         return store.notification_queue.get(block=True), None  # 改为从store获取
 
     def method_fix_diagnostic(self, params: List[FileDiagnostics]):
-        if not self.coder:
+        if not store.coder:
             raise
         if not params:
             return "", None
@@ -239,18 +237,18 @@ class CoderServerHandler:
 
     @classmethod
     def handle_fix_diagnostic(cls):
-        if not cls.coder:
+        if not store.coder:
             raise
         if not store.diagnostics:
             return
-        lint_coder = cls.coder.clone(
+        lint_coder = store.coder.clone(
             # Clear the chat history, fnames
             cur_messages=[],
             done_messages=[],
             fnames=None,
         )
-        linter = cls.coder.linter
-        cls.running = False
+        linter = store.coder.linter
+        store.running = False
         cls.handle_process_start()
         for item in store.diagnostics:
             fname = item["fname"]
@@ -272,11 +270,11 @@ class CoderServerHandler:
                 lines.update(range(lnum, end_lnum + 1))
             res += tree_context(rel_fname, file_content, lines)
 
-            cls.coder.io.tool_output(res)
+            store.coder.io.tool_output(res)
             lint_coder.add_rel_fname(fname)
             lint_coder.run(res)
             lint_coder.abs_fnames = set()
-        cls.running = False
+        store.running = False
         cls.handle_cmd_complete("fix-diagnostic")
 
     @classmethod
@@ -291,7 +289,7 @@ class CoderServerHandler:
         Before chat
         """
         log.info("handle cmd: %s", message)
-        cls.running = True
+        store.running = True
         if message:
             store.add_notify_message(
                 {
@@ -318,7 +316,7 @@ class CoderServerHandler:
             output_idx,
             stack_info=True,
         )
-        assert cls.coder is not None
+        assert store.coder is not None
         after_tmp_dir = tempfile.mkdtemp()
         after_tmp_map = copy_files_to_dir(
             [file["path"] for file in store.change_files["files"]],
@@ -327,7 +325,7 @@ class CoderServerHandler:
         modified_info = [
             {
                 "path": file["path"],
-                "abs_path": cls.coder.abs_root_path(file["path"]),
+                "abs_path": store.coder.abs_root_path(file["path"]),
                 "before_path": file.get("before_path"),
                 "after_path": after_tmp_map.get(file["path"]),
             }
@@ -395,7 +393,7 @@ class CoderServerHandler:
         """
         Save session command
         """
-        if not self.coder:
+        if not store.coder:
             return None, {"code": 32603, "message": "CoderNotInit"}
         if self.__class__.running:
             return None, {"code": 32603, "message": "Server is running"}
@@ -406,7 +404,7 @@ class CoderServerHandler:
         if dir_path and not os.path.exists(dir_path):
             os.makedirs(dir_path, exist_ok=True)
 
-        self.coder.commands.cmd_save(file_path)
+        store.coder.commands.cmd_save(file_path)
         return "save session success", None
 
     def method_list_models(self, parmas):
@@ -437,7 +435,7 @@ class CoderServerHandler:
         group=None,
         allow_never=False,
     ):
-        if not cls.running or (cls.coder and cls.coder.io.yes):
+        if not store.running or (store.coder and store.coder.io.yes):
             return
 
         options = [
@@ -468,7 +466,7 @@ class CoderServerHandler:
 
     @classmethod
     def after_confirm(cls, ret, *args, **kwargs):
-        if cls.running and not (cls.coder and cls.coder.io.yes):
+        if cls.running and not (store.coder and store.coder.io.yes):
             store.add_notify_message(
                 {
                     "type": cls.CHUNK_TYPE_CONFIRM_COMPLETE,

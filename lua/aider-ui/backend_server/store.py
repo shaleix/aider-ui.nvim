@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from typing import List, TypedDict
+from typing import List, TypedDict, Optional
 from queue import Queue
+from aider.coders import Coder
 
 
 # {
@@ -37,6 +38,8 @@ class Store:
         self.chat_history: List[str] = []
         self.output_history: List[str] = []
         self.diagnostics: List[FileDiagnostics] = []
+        self.coder: Optional[Coder] = None
+        self.running = False
         self.notification_queue = Queue(9999)
         self.waiting_add_files: List[str] = []
         self.waiting_read_files: List[str] = []

@@ -17,6 +17,7 @@ sys.path.append(str(Path(__file__).parent))
 
 from backend_server.coder_server_handler import CoderServerHandler
 from backend_server.listener import setup_listeners
+from backend_server.store import store
 
 logging.basicConfig(
     filename="/tmp/nvim_aider.log",
@@ -74,11 +75,11 @@ def coder_create_wrapper(create_method):
             switch_coder = False
         new_coder = create_method(*args, **kwargs)
         if switch_coder:
-            CoderServerHandler.coder = new_coder
-        elif CoderServerHandler.coder is None:
+            store.coder = new_coder
+        elif store.coder is None:
             # first init coder
             CoderServerHandler.handle_process_start()
-            CoderServerHandler.coder = new_coder
+            store.coder = new_coder
             CoderServerHandler.handle_cache_files()
         return new_coder
 
