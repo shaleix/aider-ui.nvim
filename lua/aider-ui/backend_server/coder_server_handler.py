@@ -33,9 +33,6 @@ class CoderServerHandler:
         "before_tmp_dir": "",
         "files": [],  # [{'path': path, 'before_path': path_tmp_map.get(path) }]
     }
-    lock = threading.Lock()  # 添加锁
-    notification_queue = Queue(9999)
-
     CHUNK_TYPE_AIDER_START = "aider_start"
     CHUNK_TYPE_NOTIFY = "notify"
     CHUNK_TYPE_CMD_START = "cmd_start"
@@ -238,7 +235,7 @@ class CoderServerHandler:
         """
         Get next notification from queue
         """
-        return self.notification_queue.get(block=True), None
+        return store.notification_queue.get(block=True), None  # 改为从store获取
 
     def method_process_status(self, params) -> Tuple[dict, Optional[ErrorData]]:
         if self.coder is not None:
@@ -377,7 +374,7 @@ class CoderServerHandler:
 
     @classmethod
     def add_notify_message(cls, data):
-        cls.notification_queue.put(data)
+        store.notification_queue.put(data)  # 改为使用store中的队列
 
     @classmethod
     def handle_cache_files(cls):

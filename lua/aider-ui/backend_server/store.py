@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import List, TypedDict
+from queue import Queue
 
 
 # {
@@ -36,6 +37,7 @@ class Store:
         self.chat_history: List[str] = []
         self.output_history: List[str] = []
         self.diagnostics: List[FileDiagnostics] = []
+        self.notification_queue = Queue(9999)  # 添加队列到Store
 
 
 store = Store()
