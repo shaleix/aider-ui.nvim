@@ -9,7 +9,7 @@ M.input = function(prompt, on_submit, opts)
   local allow_empty = opts.allow_empty or false
   local default_value = opts.default_value or (last_input_content[prompt] or "")
   local popup = Input({
-    position = "50%",
+    position = { row = "40%", col = "50%" },
     relative = "editor",
     size = {
       width = 80,

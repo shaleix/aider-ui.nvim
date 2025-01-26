@@ -21,7 +21,6 @@ local function popup_input(prompt, on_submit, opts, title)
     },
     border = {
       padding = {
-        top = 1,
         left = 2,
         right = 2,
       },

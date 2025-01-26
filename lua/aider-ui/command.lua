@@ -160,6 +160,10 @@ M.setup = function()
     sessions_ui.session_loader()
   end, { desc = "Load a saved Aider session" })
 
+  vim.api.nvim_create_user_command("AiderToggleDashBoard", function()
+    require("aider-ui.ui.dashboard").toggle_dashboard()
+  end, { desc = "Toggle Aider dashboard" })
+
   vim.api.nvim_create_user_command("AiderCommentEndWithAI", function()
     local line = vim.fn.getline(".")
     local updated_line = line .. " . AI!"

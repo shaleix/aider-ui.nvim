@@ -66,10 +66,10 @@ local function get_node_content(node, indent)
     return NuiLine({
       NuiText(string.rep("  ", indent)),
       NuiText(config.icons.folder, "AiderFolder"),
-      NuiText(" " .. node.name)
+      NuiText(" " .. node.name),
     })
   elseif node.type == "file" then
-    local icon, hl = require("nvim-web-devicons").get_icon(node.name, nil, {default = true})
+    local icon, hl = require("nvim-web-devicons").get_icon(node.name, nil, { default = true })
     return NuiLine({
       NuiText(string.rep("  ", indent)),
       NuiText(icon or "", hl),
@@ -77,7 +77,7 @@ local function get_node_content(node, indent)
     })
   else
     return NuiLine({
-      NuiText(string.rep("  ", indent) .. node.name)
+      NuiText(string.rep("  ", indent) .. node.name),
     })
   end
 end
@@ -102,14 +102,17 @@ local function get_file_content(result)
   local NuiLine = require("nui.line")
   local NuiText = require("nui.text")
   local added, readonly = result.added, result.readonly
-  local lines = {} -- type: nui.NuiLine[]
-  local lines_path = {}
+  local lines = { NuiLine() } -- type: nui.NuiLine[]
+  local lines_path = { {} }
 
   local added_count = added and #added or 0
-  table.insert(lines, NuiLine({
-    NuiText(" Added Files "),
-    NuiText("(" .. added_count .. ")", "AiderComment")
-  }))
+  table.insert(
+    lines,
+    NuiLine({
+      NuiText(" Added Files "),
+      NuiText("(" .. added_count .. ")", "AiderComment"),
+    })
+  )
   table.insert(lines_path, {})
   if added ~= nil and #added > 0 then
     local group_paths = group_tree_paths(added)
@@ -124,10 +127,13 @@ local function get_file_content(result)
   table.insert(lines_path, {})
 
   local readonly_count = readonly and #readonly or 0
-  table.insert(lines, NuiLine({
-    NuiText(" Read-only Files "),
-    NuiText("(" .. readonly_count .. ")", "AiderComment")
-  }))
+  table.insert(
+    lines,
+    NuiLine({
+      NuiText(" Read-only Files "),
+      NuiText("(" .. readonly_count .. ")", "AiderComment"),
+    })
+  )
   table.insert(lines_path, {})
   if readonly ~= nil and #readonly > 0 then
     local group_paths = group_tree_paths(readonly)
