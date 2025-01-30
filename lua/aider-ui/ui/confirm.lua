@@ -223,6 +223,10 @@ function M.show_confirm(session_with_confirm)
 
   render_confirm(session_with_confirm, popup.bufnr, current_value)
 
+  -- Set cursor position to the options line
+  local option_line_number = subject_lines + 2 -- Options line is after subject and question
+  vim.api.nvim_win_set_cursor(popup.winid, {option_line_number, 2}) -- Column 2 for "> "
+
   -- Auto close when leaving layout
   popup:on(event.BufLeave, unmount_all)
 end
