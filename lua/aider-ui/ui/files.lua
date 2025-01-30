@@ -97,13 +97,27 @@ local function traverse_tree(node, indent, aider_type)
   return lines, lines_path
 end
 
-local function get_file_content(result)
+local function get_file_content(files_data, coder_info)
   -- local cwd = vim.fn.getcwd()
   local NuiLine = require("nui.line")
   local NuiText = require("nui.text")
-  local added, readonly = result.added, result.readonly
-  local lines = { NuiLine() } -- type: nui.NuiLine[]
-  local lines_path = { {} }
+  local added, readonly = files_data.added, files_data.readonly
+
+  local coder_info_line = NuiLine({
+    NuiText("Main model: ", "AiderLabel"),
+    NuiText(coder_info.main_model, "AiderValue"),
+    NuiText(" with ", "AiderLabel"),
+    NuiText(coder_info.edit_format, "AiderValue"),
+    NuiText(" edit format", "AiderLabel"),
+  })
+
+  local cwd_line = NuiLine({
+    NuiText("Cur path: ", "AiderLabel"),
+    NuiText(vim.fn.getcwd(), "AiderValue"),
+  })
+
+  local lines = { NuiLine(), coder_info_line, cwd_line, NuiLine() }
+  local lines_path = { {}, {}, {}, {} }
 
   local added_count = added and #added or 0
   table.insert(
@@ -186,13 +200,29 @@ function FileBuffer:keybind(popup)
 end
 
 function FileBuffer:update_file_content()
-  self.session:list_files(function(res)
-    local file_lines, lines_node = get_file_content(res)
-    for i, line in ipairs(file_lines) do
-      line:render(self.bufnr, -1, i)
+  local files_data = nil
+  local coder_info_data = nil
+
+  local function update_if_ready()
+    if files_data ~= nil and coder_info_data ~= nil then
+      local file_lines, lines_node = get_file_content(files_data, coder_info_data)
+      for i, line in ipairs(file_lines) do
+        line:render(self.bufnr, -1, i)
+      end
+      vim.api.nvim_buf_set_lines(self.bufnr, #file_lines, -1, false, {})
+      self.lines_node = lines_node
+      -- Optionally, you can use coder_info_data here if needed
     end
-    vim.api.nvim_buf_set_lines(self.bufnr, #file_lines, -1, false, {})
-    self.lines_node = lines_node
+  end
+
+  self.session:list_files(function(res)
+    files_data = res
+    update_if_ready()
+  end)
+
+  self.session:get_coder_info(function(res)
+    coder_info_data = res
+    update_if_ready()
   end)
 end
 

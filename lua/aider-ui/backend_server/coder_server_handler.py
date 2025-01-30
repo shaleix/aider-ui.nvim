@@ -179,7 +179,6 @@ class CoderServerHandler:
         """
         if not store.coder:
             return [], {"code": 32603, "message": "CoderNotInit"}
-        
 
         history = store.coder.io.get_input_history()
         chat_histories = []
@@ -214,6 +213,20 @@ class CoderServerHandler:
 
         lines = store.coder.get_announcements()
         return lines, None
+
+    def method_get_coder_info(self, params):
+        """
+        Get coder info
+        """
+        if not store.coder:
+            return None, None
+
+        info = {
+            "main_model": str(store.coder.main_model),
+            "edit_format": store.coder.edit_format,
+            "cwd": str(Path.cwd()),
+        }
+        return info, None
 
     def method_notify(self, params):
         """
@@ -325,7 +338,7 @@ class CoderServerHandler:
             }
             for file in store.change_files["files"]
         ]
-        cls.running = False
+        store.running = False
         res_msg = ""
         if message and output_idx is not None:
             message = message.strip()
@@ -389,7 +402,7 @@ class CoderServerHandler:
         """
         if not store.coder:
             return None, {"code": 32603, "message": "CoderNotInit"}
-        if self.__class__.running:
+        if store.running:
             return None, {"code": 32603, "message": "Server is running"}
 
         file_path = params
@@ -417,4 +430,3 @@ class CoderServerHandler:
                 fq_model = model
             chat_models.add(fq_model)
         return sorted(chat_models), None
-

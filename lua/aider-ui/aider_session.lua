@@ -80,7 +80,7 @@ local function create(session_name, bufnr, opts)
     local client = s:get_client()
     client:connect(function(res)
       if res.result ~= nil then
-        pcall(function (result)
+        pcall(function(result)
           s:handle_notify(result)
         end, res.result)
       end
@@ -167,8 +167,8 @@ function Session:handle_notify(res)
     utils.warn(res.prompt, "Aider Confirm (" .. self.name .. ")")
     self.confirm_info = res.confirm_info
     self.need_confirm = true
-    events.AskConfirm:emit({session = self})
-  elseif res.type == 'confirm_complete' then
+    events.AskConfirm:emit({ session = self })
+  elseif res.type == "confirm_complete" then
     self.confirm_info = nil
     self.need_confirm = false
   elseif res.type == "notify" then
@@ -477,6 +477,21 @@ function Session:fix_diagnostic(diagnostics)
     end
   end)
   client:send("fix_diagnostic", diagnostics)
+end
+
+---@param callback? handle_res
+function Session:get_coder_info(callback)
+  local client = self:get_client()
+  client:connect(function(res, method, params)
+    if res.error and res.error ~= nil then
+      utils.err(vim.inspect(res.error), "get_coder_info error (Aider)")
+    else
+      if callback ~= nil then
+        callback(res.result)
+      end
+    end
+  end)
+  client:send("get_coder_info", {})
 end
 
 return {
