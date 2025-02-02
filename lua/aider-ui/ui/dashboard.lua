@@ -30,12 +30,15 @@ local function update_winbar(winid)
   vim.api.nvim_set_option_value("winbar", winbar_content, { win = winid, scope="local" })
 end
 
-local function update_all(bufnr, winid)
+local function update_all(popup)
+  local bufnr = popup.bufnr
+  local winid = popup.winid
   update_winbar(winid)
   local current_session = sessions.current_session()
   local file_buf = files.new_file_buffer(bufnr, current_session)
   -- file_buf:keybind(content_popup)
   file_buf:update_file_content()
+  file_buf:keybind(popup)
 end
 
 function M.show_dashboard()
@@ -75,18 +78,22 @@ function M.show_dashboard()
   dashboard_popup:map("n", "<Esc>", M.close_dashboard, mapOpts)
   dashboard_popup:map("n", "H", function ()
     sessions.prev_session()
-    update_all(dashboard_popup.bufnr, dashboard_popup.winid)
+    update_all(dashboard_popup)
   end, mapOpts)
   dashboard_popup:map("n", "L", function ()
     sessions.next_session()
-    update_all(dashboard_popup.bufnr, dashboard_popup.winid)
+    update_all(dashboard_popup)
   end, mapOpts)
+  dashboard_popup:map("n", "m", function()
+    require("aider-ui.ui.model").switch_model()
+    M.close_dashboard()
+  end)
 
   M.layout = dashboard_popup
   dashboard_popup:mount()
   common.dim(dashboard_popup.bufnr)
   M.content_type = FILE
-  update_all(dashboard_popup.bufnr, dashboard_popup.winid)
+  update_all(dashboard_popup)
 
   M.is_visible = true
   vim.api.nvim_set_current_win(dashboard_popup.winid)
