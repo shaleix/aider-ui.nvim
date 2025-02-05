@@ -115,9 +115,7 @@ local function popup_input(prompt, on_submit, opts, title)
     last_input_content[prompt] = ""
 
     if original_winid then
-      vim.defer_fn(function()
-        pcall(vim.api.nvim_set_current_win, original_winid)
-      end, 500)
+      pcall(vim.api.nvim_set_current_win, original_winid)
     end
   end
   local handle_quite = function()
@@ -184,7 +182,7 @@ local function popup_input(prompt, on_submit, opts, title)
   end, mapOpts)
 
   layout:mount()
-  common.dim(bottom_popup.bufnr, {"WinClosed"})
+  common.dim(bottom_popup.bufnr, { "WinClosed" })
 
   local lines = {}
   if type(default_value) == "string" then
@@ -220,8 +218,6 @@ function M.show_input(input_type, default_value)
     return
   end
   local handle_submit = function(value)
-    local side_split = require("aider-ui.ui.side_split")
-    side_split.show_aider_split()
     if input_type == "ask" then
       session:ask(value)
     elseif input_type == "code" then

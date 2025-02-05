@@ -77,6 +77,7 @@ function M.show_confirm(session_with_confirm)
   end
   local current_value = session_with_confirm.confirm_info.default
   local options = session_with_confirm.confirm_info.options or {}
+  local original_winid = vim.api.nvim_get_current_win()
 
   -- Calculate popup dimensions
   local subject_lines = 0
@@ -152,6 +153,9 @@ function M.show_confirm(session_with_confirm)
 
   local function unmount_all()
     layout:unmount()
+    if original_winid then
+      pcall(vim.api.nvim_set_current_win, original_winid)
+    end
   end
 
   popup:map("n", "<Esc>", unmount_all)
