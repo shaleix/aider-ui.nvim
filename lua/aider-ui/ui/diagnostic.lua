@@ -174,6 +174,10 @@ function M.diagnostic(opts)
       define_preview = function(self, entry, status)
         local message = entry.text
         local lines = vim.split(message, "\n")
+        -- Prefix each line with "> "
+        for i, line in ipairs(lines) do
+          lines[i] = "> " .. line
+        end
         local file_buf = entry.bufnr
         local start_lnum = entry.lnum
         local end_lnum = entry.end_lnum
@@ -183,7 +187,6 @@ function M.diagnostic(opts)
         local filetype = vim.api.nvim_get_option_value("filetype", {buf=file_buf})
         -- Combine message and code
         local preview_lines = {}
-        table.insert(preview_lines, string.format("- Ln %d:%d ~ Ln %d:%d", start_lnum, entry.col, end_lnum, entry.end_col))
         table.insert(preview_lines, "```"..filetype)
         -- Add line numbers to code lines
         for i, line in ipairs(code_lines) do
@@ -197,10 +200,8 @@ function M.diagnostic(opts)
             end
         end
         table.insert(preview_lines, "```")
-        table.insert(preview_lines, "")
         vim.list_extend(preview_lines, lines)
         table.insert(preview_lines, "")
-        table.insert(preview_lines, string.format("level: %s", SEVERITY[entry.severity]))
         -- Write to preview buffer
         vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, preview_lines)
         vim.api.nvim_set_option_value('filetype', 'markdown', { buf = self.state.bufnr })
