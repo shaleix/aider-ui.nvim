@@ -13,6 +13,11 @@ M.defaults = {
   },
   aider_cmd_args_watch_files = nil,
   auto_pop_confirm = true,  -- Automatically pop confirm dialog when AskConfirm event is triggered
+  sider_width = 85,
+  chat_size = {
+    width = 85,
+    height = 35,
+  },
 }
 
 M.options = {}

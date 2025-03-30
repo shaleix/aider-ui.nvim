@@ -2,6 +2,7 @@ local common = require("aider-ui.ui.common")
 local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
 local events = require("aider-ui.events")
+local config = require("aider-ui.config")
 
 local mapOpts = { noremap = true }
 
@@ -71,7 +72,7 @@ M.show_aider_split = function(new_session_name)
         number = false,
       },
       size = {
-        width = 85,
+        width = config.options.sider_width,
       },
       buf_options = {
         filetype = "aiderpanel",

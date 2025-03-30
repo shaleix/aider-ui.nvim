@@ -3,6 +3,7 @@ local common = require("aider-ui.ui.common")
 local files = require("aider-ui.ui.files")
 local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
+local config = require("aider-ui.config")
 
 local last_input_content = {}
 local mapOpts = { noremap = true }
@@ -87,8 +88,8 @@ local function popup_input(prompt, on_submit, opts, title)
       position = "50%",
       relative = "editor",
       size = {
-        width = 80,
-        height = 30,
+        width = config.options.chat_size.width,
+        height = config.options.chat_size.height,
       },
     },
     Layout.Box({
