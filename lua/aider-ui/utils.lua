@@ -81,11 +81,16 @@ local sep_symbol = " > "
 
 local function find_symbol(symbols, line, col)
   for _, symbol in ipairs(symbols) do
+    local range = symbol.range or (symbol.location and symbol.location.range)
+    if not range then
+      goto continue
+    end
+
     if
-      symbol.range.start.line <= line
-      and symbol.range["end"].line >= line
-      and symbol.range.start.character <= col
-      and (symbol.range["end"].line > line or symbol.range["end"].character >= col)
+      range.start.line <= line and
+      range["end"].line >= line and
+      range.start.character <= col and
+      (range["end"].line > line or range["end"].character >= col)
     then
       local child_symbol = nil
       if symbol.children then
@@ -97,12 +102,15 @@ local function find_symbol(symbols, line, col)
         return symbol.name
       end
     end
+
     if symbol.children then
       local child = find_symbol(symbol.children, line, col)
       if child then
         return symbol.name .. sep_symbol .. child
       end
     end
+
+    ::continue::
   end
   return nil
 end
@@ -119,25 +127,26 @@ function M.get_current_path(callback, on_not_supported)
     textDocument = { uri = vim.uri_from_bufnr(bufnr) },
   }
 
-  -- local symbols = vim.lsp.buf_request_sync(bufnr, "textDocument/documentSymbol", params, 500)
-  vim.lsp.buf_request(bufnr, "textDocument/documentSymbol", params, function(err, symbols)
-    if not symbols then
-      return nil
-    end
+  vim.lsp.buf_request(
+    bufnr,
+    "textDocument/documentSymbol",
+    params,
+    function(err, result)
+      if err or not result then
+        if on_not_supported then on_not_supported() end
+        return
+      end
 
-    local symbol = find_symbol(symbols, line, col)
-    if not symbol then
-      return nil
+      local symbols = result.result or result
+      local symbol = find_symbol(symbols, line, col)
+      if not symbol then return end
+      symbol = file_name .. sep_symbol .. symbol
+      if callback then callback(symbol) end
+    end,
+    function()
+      if on_not_supported then on_not_supported() end
     end
-    symbol = file_name .. sep_symbol .. symbol
-    if callback ~= nil then
-      callback(symbol)
-    end
-  end, function()
-    if on_not_supported ~= nil then
-      on_not_supported()
-    end
-  end)
+  )
 end
 
 return M
