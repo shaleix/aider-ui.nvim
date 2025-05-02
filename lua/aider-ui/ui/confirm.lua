@@ -174,6 +174,19 @@ function M.show_confirm(session_with_confirm)
     render_confirm(session_with_confirm, popup.bufnr, current_value)
   end)
 
+  popup:map("n", "<S-Tab>", function()
+    local current_index = 1
+    for i, opt in ipairs(options) do
+      if opt.value == current_value then
+        current_index = i
+        break
+      end
+    end
+    current_index = (current_index - 2) % #options + 1
+    current_value = options[current_index].value
+    render_confirm(session_with_confirm, popup.bufnr, current_value)
+  end)
+
   popup:map("n", "<CR>", function()
     on_confirm(current_value)
     popup:unmount()
