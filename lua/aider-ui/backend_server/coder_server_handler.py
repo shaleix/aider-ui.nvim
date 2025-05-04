@@ -255,7 +255,7 @@ class CoderServerHandler:
             fnames=None,
         )
         linter = store.coder.linter
-        store.running = False
+        store.running = True
         cls.handle_process_start()
         for item in store.diagnostics:
             fname = item["fname"]
@@ -388,7 +388,7 @@ class CoderServerHandler:
 
     def method_exit(self, params):
         """
-        退出服务器
+        exit aider
         """
         store.add_notify_message(
             {"type": NotifyType.AIDER_EXIT, "message": "aider exited"}

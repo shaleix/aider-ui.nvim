@@ -51,6 +51,12 @@ def before_confirm(
     allow_never=False,
 ):
     if not store.running or (store.coder and store.coder.io.yes):
+        log.debug(
+            "skip confirm, for running: %s, store.coder: %s, store.coder.io.yes: %s",
+            store.running,
+            store.coder,
+            store.coder and store.coder and store.coder.io and store.coder.io.yes,
+        )
         return
 
     options = [

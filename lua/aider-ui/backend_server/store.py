@@ -2,6 +2,10 @@
 from typing import List, TypedDict, Optional
 from queue import Queue
 from aider.coders import Coder
+import logging
+
+
+log = logging.getLogger(__name__)
 
 
 # {
@@ -50,6 +54,7 @@ class Store:
         }
 
     def add_notify_message(self, data):
+        log.info('add_notify_message: %s', data)
         self.notification_queue.put(data)
 
 
