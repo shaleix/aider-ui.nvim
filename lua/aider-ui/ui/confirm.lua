@@ -105,7 +105,7 @@ function M.show_confirm(session_with_confirm)
     border = {
       style = { " ", " ", " ", " ", " ", " ", " ", " " },
       text = {
-        top = " Aider: " .. session_with_confirm.name .. " ",
+        top = " Aider Confirm (" .. session_with_confirm.name .. ") ",
         top_align = "center",
       },
       padding = {
