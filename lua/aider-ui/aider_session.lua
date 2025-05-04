@@ -109,14 +109,11 @@ local function create(session_name, bufnr, opts)
           end
         end
       end,
+      cwd = cwd,
+      on_exit = on_exit,
+      term = true,
     }
-    if cwd then
-      term_opts.cwd = cwd
-    end
-    if on_exit then
-      term_opts.on_exit = on_exit
-    end
-    return vim.fn.termopen(cmd, term_opts)
+    return vim.fn.jobstart(cmd, term_opts)
   end)
   setmetatable(s, { __index = Session })
   return s
