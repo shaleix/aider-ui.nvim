@@ -8,7 +8,7 @@ from typing import List, Optional, TypedDict
 
 from aider.commands import Commands
 from aider.linter import tree_context
-from aider.llm import litellm
+from aider.models import MODEL_ALIASES
 from backend_server.consts import NotifyType
 from backend_server.store import FileDiagnostics, store
 from backend_server.utils import copy_files_to_dir
@@ -418,15 +418,8 @@ class CoderServerHandler:
         """
         list chat models
         """
-        chat_models = set()
-        for model, attrs in litellm.model_cost.items():
-            model = model.lower()
-            if attrs.get("mode") != "chat":
-                continue
-            if "litellm_provider" in attrs:
-                provider = attrs.get("litellm_provider").lower() + "/"
-                fq_model = model if model.startswith(provider) else provider + model
-            else:
-                fq_model = model
-            chat_models.add(fq_model)
-        return sorted(chat_models), None
+        ret = []
+        for alias_name, model in MODEL_ALIASES.items():
+            ret.append({"alias_name": alias_name, "model": model})
+        sorted(ret, key=lambda x: x["alias_name"])
+        return ret, None

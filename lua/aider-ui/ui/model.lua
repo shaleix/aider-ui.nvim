@@ -28,9 +28,9 @@ function M.switch_model()
           results = models,
           entry_maker = function(model)
             return {
-              value = model,
-              ordinal = model,
-              display = model,
+              value = model.model,
+              ordinal = model.alias_name .. " : " .. model.model,
+              display = model.alias_name .. " : " .. model.model,
             }
           end,
         }),
