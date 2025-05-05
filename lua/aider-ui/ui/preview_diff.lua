@@ -29,10 +29,11 @@ end
 local function preview_file_changes(items)
   local entries = {}
   for _, item in ipairs(items) do
+    local display_path = vim.fn.fnamemodify(item.path, ':.')
     table.insert(entries, {
       value = item,
       ordinal = item.path,
-      display = item.path,
+      display = display_path,
     })
   end
 
