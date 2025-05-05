@@ -3,14 +3,14 @@ local if_nil = vim.F.if_nil
 local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
 local SEVERITY = vim.diagnostic.severity
-local entry_display = require "telescope.pickers.entry_display"
+local entry_display = require("telescope.pickers.entry_display")
 
 local errlist_type_map = {
-    [SEVERITY.ERROR] = "E",
-    [SEVERITY.WARN] = "W",
-    [SEVERITY.INFO] = "I",
-    [SEVERITY.HINT] = "N",
-  }
+  [SEVERITY.ERROR] = "E",
+  [SEVERITY.WARN] = "W",
+  [SEVERITY.INFO] = "I",
+  [SEVERITY.HINT] = "N",
+}
 
 --diagnostic: {
 --     _tags = {
@@ -96,80 +96,73 @@ local function fix_diagnostics(diagnostics)
   session:fix_diagnostic(diagnostics_list)
 end
 
-function M.diagnostic(opts)
-  local scope = if_nil(opts and opts.scope, "buffer")
-  local pickers = require("telescope.pickers")
-
-  local lnum = nil
-  if scope == "line" then
-    lnum = vim.api.nvim_win_get_cursor(0)[1] - 1
-  end
+local function handle_buffer_diagnostics()
   local bufnr = vim.api.nvim_get_current_buf()
-  local diagnostics = get_diagnostics_for_scope(bufnr, lnum)
+  local diagnostics = get_diagnostics_for_scope(bufnr)
 
-  -- Sort diagnostics by severity (most severe first) and then by line number
-  table.sort(diagnostics, function(a, b)
-    if a.severity == b.severity then
-      return a.lnum < b.lnum
-    end
-    return a.severity < b.severity
-  end)
-
-  local added_items = {}
-  for idx, diagnostic in ipairs(diagnostics) do
-    diagnostic.idx = idx
-    table.insert(added_items, false)
-  end
-  local display_items = {
-    { width = 4 },
-    { width = 7 },
-    { remaining = true },
-  }
-
-  local displayer = entry_display.create {
-    separator = "▏",
-    items = display_items,
-  }
-  local make_display = function(entry)
-    local pos = string.format("%s %s", errlist_type_map[entry.type], entry.lnum)
-    local line_info = {
-      pos,
-      "DiagnosticSign" .. SEVERITY[entry.type],
-    }
-    local prefix = added_items[entry.value] and "  " or "   "
-
-    return displayer {
-      {
-        prefix,
-        "DiagnosticSignError",
-      },
-      line_info,
-      {
-        entry.text,
-      },
-    }
-  end
-
-  local entry_maker = function(diagnostic)
-    local message = vim.split(diagnostic.message, "\n")[1]
-    return {
-      value = diagnostic.idx,
-      ordinal = message,
-      display = make_display,
-      lnum = diagnostic.lnum,
-      end_lnum = diagnostic.end_lnum,
-      col = diagnostic.col,
-      end_col = diagnostic.end_col,
-      text = message,
-      type = diagnostic.severity,
-      severity = diagnostic.severity,
-      bufnr = diagnostic.bufnr
-      -- display = prefix .. message,
-    }
-  end
-
-  -- 使用 Telescope 显示诊断信息
   if #diagnostics > 0 then
+    -- Sort diagnostics by severity (most severe first) and then by line number
+    table.sort(diagnostics, function(a, b)
+      if a.severity == b.severity then
+        return a.lnum < b.lnum
+      end
+      return a.severity < b.severity
+    end)
+
+    local added_items = {}
+    for idx, diagnostic in ipairs(diagnostics) do
+      diagnostic.idx = idx
+      table.insert(added_items, false)
+    end
+    local display_items = {
+      { width = 4 },
+      { width = 7 },
+      { remaining = true },
+    }
+
+    local displayer = entry_display.create({
+      separator = "▏",
+      items = display_items,
+    })
+    local make_display = function(entry)
+      local pos = string.format("%s %s", errlist_type_map[entry.type], entry.lnum)
+      local line_info = {
+        pos,
+        "DiagnosticSign" .. SEVERITY[entry.type],
+      }
+      local prefix = added_items[entry.value] and "  " or "   "
+
+      return displayer({
+        {
+          prefix,
+          "DiagnosticSignError",
+        },
+        line_info,
+        {
+          entry.text,
+        },
+      })
+    end
+
+    local entry_maker = function(diagnostic)
+      local message = vim.split(diagnostic.message, "\n")[1]
+      return {
+        value = diagnostic.idx,
+        ordinal = message,
+        display = make_display,
+        lnum = diagnostic.lnum,
+        end_lnum = diagnostic.end_lnum,
+        col = diagnostic.col,
+        end_col = diagnostic.end_col,
+        text = message,
+        type = diagnostic.severity,
+        severity = diagnostic.severity,
+        bufnr = diagnostic.bufnr,
+        -- display = prefix .. message,
+      }
+    end
+
+    -- 使用 Telescope 显示诊断信息
     local previewer = require("telescope.previewers").new_buffer_previewer({
       define_preview = function(self, entry, status)
         local message = entry.text
@@ -184,31 +177,32 @@ function M.diagnostic(opts)
         -- Get code context from the original buffer
         local code_lines = vim.api.nvim_buf_get_lines(file_buf, start_lnum, end_lnum + 1, false)
         -- Get filetype for syntax highlighting
-        local filetype = vim.api.nvim_get_option_value("filetype", {buf=file_buf})
+        local filetype = vim.api.nvim_get_option_value("filetype", { buf = file_buf })
         -- Combine message and code
         local preview_lines = {}
-        table.insert(preview_lines, "```"..filetype)
+        table.insert(preview_lines, "```" .. filetype)
         -- Add line numbers to code lines
         for i, line in ipairs(code_lines) do
-            if i == 1 then
-                -- Add column markers for first line
-                local marker = string.rep(" ", entry.col) .. string.rep("^", entry.end_col - entry.col)
-                table.insert(preview_lines, line)
-                table.insert(preview_lines, marker)
-            else
-                table.insert(preview_lines, line)
-            end
+          if i == 1 then
+            -- Add column markers for first line
+            local marker = string.rep(" ", entry.col) .. string.rep("^", entry.end_col - entry.col)
+            table.insert(preview_lines, line)
+            table.insert(preview_lines, marker)
+          else
+            table.insert(preview_lines, line)
+          end
         end
         table.insert(preview_lines, "```")
         vim.list_extend(preview_lines, lines)
         table.insert(preview_lines, "")
         -- Write to preview buffer
         vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, preview_lines)
-        vim.api.nvim_set_option_value('filetype', 'markdown', { buf = self.state.bufnr })
-        vim.api.nvim_set_option_value('conceallevel', 2, { win = self.state.winid })
+        vim.api.nvim_set_option_value("filetype", "markdown", { buf = self.state.bufnr })
+        vim.api.nvim_set_option_value("conceallevel", 2, { win = self.state.winid })
       end,
     })
 
+    local pickers = require("telescope.pickers")
     pickers
       .new({}, {
         prompt_title = "Send diagnostics to Aider",
@@ -277,6 +271,144 @@ function M.diagnostic(opts)
         end,
       })
       :find()
+  end
+end
+
+local function handle_line_diagnostics()
+  local NuiText = require("nui.text")
+  local NuiLine = require("nui.line")
+  local Popup = require("nui.popup")
+  local lnum = vim.api.nvim_win_get_cursor(0)[1] - 1
+  local bufnr = vim.api.nvim_get_current_buf()
+  local diagnostics = get_diagnostics_for_scope(bufnr, lnum)
+
+  table.sort(diagnostics, function(a, b)
+    if a.severity == b.severity then
+      return a.lnum < b.lnum
+    end
+    return a.severity < b.severity
+  end)
+
+  if #diagnostics == 0 then
+    utils.info("No diagnostics on current line")
+    return
+  end
+
+  local selected = {}
+  for idx, _ in ipairs(diagnostics) do
+    selected[idx] = false
+  end
+
+  local total_lines = 0
+  for _, diag in ipairs(diagnostics) do
+    total_lines = total_lines + #vim.split(diag.message, "\n")
+  end
+
+  local cursor_row = vim.api.nvim_win_get_cursor(0)[1]
+  local win_height = vim.api.nvim_win_get_height(0)
+
+  local position = {
+    row = cursor_row < (win_height / 2) and 2 or -total_lines - 1,
+    col = 0,
+  }
+
+  local popup = Popup({
+    enter = true,
+    focusable = true,
+    position = position,
+    relative = "cursor",
+    border = {
+      style = "rounded",
+      text = {
+        top = NuiText(" Aider Lint ", "Comment"),
+        bottom = NuiText("a,i,x,o to toggle | <CR> to fix | q to dismiss", "Comment"),
+        bottom_align = "right",
+      },
+    },
+    size = {
+      width = 80,
+      height = total_lines,
+    },
+  })
+
+  local row_map = {}
+  local refresh = function()
+    row_map = {}
+    local lines = {}
+    for idx, diag in ipairs(diagnostics) do
+      local msg_lines = vim.split(diag.message, "\n")
+      for line_idx, line_text in ipairs(msg_lines) do
+        local style_name = ""
+        if diag.severity == SEVERITY.ERROR then
+          style_name = "DiagnosticError"
+        elseif diag.severity == SEVERITY.WARN then
+          style_name = "DiagnosticWarn"
+        elseif diag.severity == SEVERITY.INFO then
+          style_name = "DiagnosticInfo"
+        else
+          style_name = "DiagnosticHint"
+        end
+
+        local components = {}
+        if line_idx == 1 then
+          components = {
+            NuiText("[" .. (selected[idx] and "x" or " ") .. "]", style_name),
+            NuiText(" " .. line_text, style_name),
+          }
+        else
+          components = {
+            NuiText("    " .. line_text, style_name),
+          }
+        end
+
+        local diag_line = NuiLine(components)
+        table.insert(lines, diag_line)
+        table.insert(row_map, idx)
+      end
+    end
+
+    for i, line in ipairs(lines) do
+      line:render(popup.bufnr, -1, i)
+    end
+  end
+
+  popup:map("n", { " ", "a", "i", "x", "o" }, function()
+    local row = vim.api.nvim_win_get_cursor(popup.winid)[1]
+    if row <= #row_map then
+      local diag_idx = row_map[row]
+      if diag_idx then
+        selected[diag_idx] = not selected[diag_idx]
+        refresh()
+      end
+    end
+  end)
+
+  popup:map("n", "<CR>", function()
+    local selected_diagnostics = {}
+    for i, sel in pairs(selected) do
+      if sel then
+        table.insert(selected_diagnostics, diagnostics[i])
+      end
+    end
+    fix_diagnostics(selected_diagnostics)
+    popup:unmount()
+  end)
+  popup:map("n", "q", function()
+    popup:unmount()
+  end)
+
+  popup:mount()
+  refresh()
+end
+
+function M.diagnostic(opts)
+  local scope = if_nil(opts and opts.scope, "buffer")
+  if scope == "buffer" then
+    handle_buffer_diagnostics()
+  elseif scope == "line" then
+    handle_line_diagnostics()
+  else
+    error("Unsupported scope type: " .. scope)
   end
 end
 
