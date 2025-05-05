@@ -390,8 +390,12 @@ local function handle_line_diagnostics()
         table.insert(selected_diagnostics, diagnostics[i])
       end
     end
-    fix_diagnostics(selected_diagnostics)
-    popup:unmount()
+    if #selected_diagnostics == 0 then
+      utils.err("No diagnostics selected")
+    else
+      fix_diagnostics(selected_diagnostics)
+      popup:unmount()
+    end
   end)
   popup:map("n", "q", function()
     popup:unmount()
