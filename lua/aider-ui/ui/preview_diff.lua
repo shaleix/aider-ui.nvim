@@ -28,12 +28,19 @@ end
 
 local function preview_file_changes(items)
   local entries = {}
+  local devicons = require("nvim-web-devicons")
+
   for _, item in ipairs(items) do
-    local display_path = vim.fn.fnamemodify(item.path, ':.')
+    local path = item.path
+    local filename = vim.fn.fnamemodify(path, ":t")
+    local icon, _ = devicons.get_icon(filename, nil, { default = true })
+    icon = icon or ""
+    local display_path = vim.fn.fnamemodify(path, ":.")
+
     table.insert(entries, {
       value = item,
       ordinal = item.path,
-      display = display_path,
+      display = " " .. icon .. " " .. display_path,
     })
   end
 
