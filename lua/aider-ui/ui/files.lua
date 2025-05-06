@@ -98,22 +98,27 @@ local function traverse_tree(node, indent, aider_type)
 end
 
 local function get_file_content(files_data, coder_info)
-  -- local cwd = vim.fn.getcwd()
+  local current_cwd = vim.fn.getcwd():gsub("\\", "/")
+  local display_cwd = coder_info.cwd:gsub("\\", "/")
+
+  if #display_cwd >= #current_cwd and string.sub(display_cwd, 1, #current_cwd) == current_cwd then
+    display_cwd = "." .. string.sub(display_cwd, #current_cwd + 1, #display_cwd)
+  end
   local NuiLine = require("nui.line")
   local NuiText = require("nui.text")
   local added, readonly = files_data.added, files_data.readonly
 
   local coder_info_line = NuiLine({
-    NuiText("Main model: ", "AiderLabel"),
+    NuiText("- Main model: ", "Comment"),
     NuiText(coder_info.main_model, "AiderValue"),
-    NuiText(" with ", "AiderLabel"),
+    NuiText(" with ", "Comment"),
     NuiText(coder_info.edit_format, "AiderValue"),
-    NuiText(" edit format", "AiderLabel"),
+    NuiText(" edit format", "Comment"),
   })
 
   local cwd_line = NuiLine({
-    NuiText("Cur path: ", "AiderLabel"),
-    NuiText(vim.fn.getcwd(), "AiderValue"),
+    NuiText("- Cur path: ", "Comment"),
+    NuiText(display_cwd, "AiderValue"),
   })
 
   local lines = { NuiLine(), coder_info_line, cwd_line, NuiLine() }
