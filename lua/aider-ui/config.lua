@@ -3,6 +3,7 @@ local M = {}
 M.defaults = {
   icons = {
     folder = "",
+    collapse_marks = { '', '' },
   },
   session_save_dir = ".aider_sessions",
   python_path = "/usr/bin/python3",
