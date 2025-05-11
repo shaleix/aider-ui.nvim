@@ -91,8 +91,17 @@ function M.diff(diff_files)
     local target_item = get_file_by_cursor(current_line)
 
     if target_item then
+      local line_content = vim.api.nvim_get_current_line()
+      local lineNumberStr = line_content:match("│.*│.*│%s*(%d+).*")
+      local lineNumber = tonumber(lineNumberStr)
+
       popup:unmount()
-      vim.cmd("edit " .. target_item.path)
+
+      if lineNumber then
+        vim.cmd("edit +" .. lineNumber .. " " .. target_item.path)
+      else
+        vim.cmd("edit " .. target_item.path)
+      end
     end
   end, { noremap = true })
 
