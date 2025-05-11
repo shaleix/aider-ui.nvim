@@ -69,7 +69,7 @@ function M.diff(diff_files)
     return nil
   end
 
-  popup:map("n", { "o", "<CR>", "<Tab>" }, function()
+  popup:map("n", { "o", "<Tab>" }, function()
     local current_line = vim.api.nvim_win_get_cursor(popup.winid)[1]
     local target_item, line_index = get_file_by_cursor(current_line)
 
@@ -83,6 +83,16 @@ function M.diff(diff_files)
       if current_line > line_index then
         vim.api.nvim_win_set_cursor(popup.winid, { line_index, 1 })
       end
+    end
+  end, { noremap = true })
+
+  popup:map("n", "<CR>", function()
+    local current_line = vim.api.nvim_win_get_cursor(popup.winid)[1]
+    local target_item = get_file_by_cursor(current_line)
+
+    if target_item then
+      popup:unmount()
+      vim.cmd("edit " .. target_item.path)
     end
   end, { noremap = true })
 
