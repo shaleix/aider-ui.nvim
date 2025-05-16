@@ -15,7 +15,9 @@ function M.diff(diff_files)
   local lines = {}
 
   for _, item in ipairs(diff_files) do
-    item.opened = false
+    if not item.opened or item.cached_diff_lines == nil then
+      item.opened = false
+    end
   end
   for _, item in ipairs(diff_files) do
     local icon, _ = devicons.get_icon(item.path, nil, { default = true })
@@ -40,7 +42,7 @@ function M.diff(diff_files)
       },
       style = { " ", " ", " ", " ", " ", " ", " ", " " },
       text = {
-        top = Text(" Aider Input History ", "AiderPromptTitle"),
+        top = Text(" Aider Diff View ", "AiderPromptTitle"),
         top_align = "center",
       },
     },
@@ -120,7 +122,11 @@ function M.init_render_diff(popup, diff_files)
 
   local current_lnum = 1
   for _, item in ipairs(diff_files) do
-    current_lnum = M.render_file(bufnr, item, current_lnum, nil, popup.winid)
+    local end_lnum = nil
+    if item.opened and item.cached_diff_lines then
+      end_lnum = current_lnum + #item.cached_diff_lines
+    end
+    current_lnum = M.render_file(bufnr, item, current_lnum, end_lnum, popup.winid)
   end
 end
 
@@ -180,6 +186,7 @@ function M.handle_render_file(bufnr, file, start_lnum, end_lnum)
   if file.opened then
     local baleia = require("baleia").setup({})
     baleia.buf_set_lines(bufnr, start_lnum, end_lnum, false, file.cached_diff_lines)
+    current_lnum = current_lnum + #file.cached_diff_lines
   else
     if end_lnum ~= nil then
       vim.api.nvim_buf_set_lines(bufnr, start_lnum, end_lnum, true, {})
