@@ -181,7 +181,7 @@ function M.new_file_buffer(bufnr, session)
   return self
 end
 
-function FileBuffer:keybind(popup)
+function FileBuffer:keybind(popup, layout)
   popup:map("n", "dd", function()
     local line_num = vim.fn.line(".")
     local node = self.lines_node[line_num]
@@ -201,6 +201,18 @@ function FileBuffer:keybind(popup)
     self.session:exchange_files({ node.path }, function()
       self:update_file_content()
     end)
+  end)
+  popup:map("n", "<CR>", function()
+    local line_num = vim.fn.line(".")
+    local node = self.lines_node[line_num]
+    if node.type == "file" then
+      if layout ~= nil then
+        layout:unmount()
+      else
+        popup:unmount()
+      end
+      vim.cmd.edit(node.path)
+    end
   end)
 end
 

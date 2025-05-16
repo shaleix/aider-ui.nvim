@@ -29,7 +29,7 @@ local function popup_input(prompt, on_submit, opts, title)
       text = {
         top = NuiText(title or "", "AiderPromptTitle"),
         top_align = "center",
-        bottom = NuiText("dd: drop file, c: switch add/read", "AiderComment"),
+        bottom = NuiText("dd: drop file, c: switch add/read, <CR>: open file", "AiderComment"),
         bottom_align = "right",
       },
     },
@@ -195,7 +195,7 @@ local function popup_input(prompt, on_submit, opts, title)
   end
   vim.api.nvim_buf_set_lines(bottom_popup.bufnr, 0, -1, false, lines)
   vim.api.nvim_input("GA")
-  return top_popup
+  return top_popup, layout
 end
 
 function M.show_input(input_type, default_value)
@@ -227,9 +227,9 @@ function M.show_input(input_type, default_value)
       session:architect(value)
     end
   end
-  local content_popup = popup_input(title, handle_submit, opts, session_title)
+  local content_popup, layout = popup_input(title, handle_submit, opts, session_title)
   local file_buf = files.new_file_buffer(content_popup.bufnr, session)
-  file_buf:keybind(content_popup)
+  file_buf:keybind(content_popup, layout)
   file_buf:update_file_content()
 end
 
