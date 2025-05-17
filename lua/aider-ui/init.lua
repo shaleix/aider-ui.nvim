@@ -20,6 +20,8 @@ M.session_status = function()
   return aider_sessions.list_session_status()
 end
 
+M.api = {}
+
 ---@param cb fun(result: table)
 function M.api.get_current_session_files(cb)
   local sessions = require("aider-ui.aider_sessions_manager")
