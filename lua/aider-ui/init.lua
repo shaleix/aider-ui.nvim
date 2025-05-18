@@ -64,4 +64,19 @@ function M.api.drop_current_session_files(files, cb)
   end)
 end
 
+---@param files string[]
+---@param cb? fun(result: table)
+function M.api.read_current_session_files(files, cb)
+  local sessions = require("aider-ui.aider_sessions_manager")
+  local current_session = sessions.current_session()
+  if not current_session then
+    return
+  end
+  current_session:read_files(files, function(response)
+    if cb then
+      cb(response.result)
+    end
+  end)
+end
+
 return M
