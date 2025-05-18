@@ -13,7 +13,7 @@ local function popup_input(prompt, on_submit, opts, title)
   local NuiText = require("nui.text")
   local Layout = require("nui.layout")
   local allow_empty = opts.allow_empty or false
-  local default_value = opts.default_value or (last_input_content[prompt] or "")
+  local default_value = opts.default_value or (last_input_content[title] or "")
   local top_popup = Popup({
     position = "50%",
     size = {
@@ -113,7 +113,7 @@ local function popup_input(prompt, on_submit, opts, title)
 
     layout:unmount()
     on_submit(value)
-    last_input_content[prompt] = ""
+    last_input_content[title] = ""
 
     if original_winid then
       pcall(vim.api.nvim_set_current_win, original_winid)
@@ -122,7 +122,7 @@ local function popup_input(prompt, on_submit, opts, title)
   local handle_quite = function()
     local bufnr = bottom_popup.bufnr
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-    last_input_content[prompt] = lines
+    last_input_content[title] = lines
     layout:unmount()
 
     if original_winid then
@@ -208,7 +208,8 @@ function M.show_input(input_type, default_value)
     architect = "  architect ",
   }
   local title = titles[input_type] or "Unknown Input"
-  local session_title = " Aider Session: " .. sessions.get_current_session_name() .. " "
+  local session_name = sessions.get_current_session_name()
+  local session_title = " Aider Session: " .. session_name .. " "
   local opts = { allow_empty = false }
   if default_value ~= nil then
     opts.default_value = default_value
