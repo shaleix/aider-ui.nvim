@@ -30,7 +30,7 @@ function M.api.get_current_session_files(cb)
     return
   end
   current_session:list_files(function(response)
-    cb(response.result)
+    cb(response)
   end)
 end
 
@@ -44,7 +44,7 @@ function M.api.add_current_session_files(files, cb)
   end
   current_session:add_files(files, function(response)
     if cb then
-      cb(response.result)
+      cb(response)
     end
   end)
 end
@@ -59,7 +59,7 @@ function M.api.drop_current_session_files(files, cb)
   end
   current_session:drop_files(files, function(response)
     if cb then
-      cb(response.result)
+      cb(response)
     end
   end)
 end
@@ -74,7 +74,7 @@ function M.api.read_current_session_files(files, cb)
   end
   current_session:read_files(files, function(response)
     if cb then
-      cb(response.result)
+      cb(response)
     end
   end)
 end
