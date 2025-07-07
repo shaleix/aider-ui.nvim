@@ -51,12 +51,15 @@ local function create(session_name, bufnr, opts)
     python_path,
     server_path,
   }
-  local aider_cmd_args = {}
-  if watch_files then
-    aider_cmd_args = configs.aider_cmd_args_watch_files or {}
+  local aider_cmd_args
+  if type(configs.aider_cmd_args) == "function" then
+    aider_cmd_args = configs.aider_cmd_args(watch_files)
+  elseif type(configs.aider_cmd_args) == "table" then
+    aider_cmd_args = configs.aider_cmd_args
   else
-    aider_cmd_args = configs.aider_cmd_args or {}
+    aider_cmd_args = {}
   end
+
   for _, arg in ipairs(aider_cmd_args) do
     table.insert(cmd_args, arg)
   end

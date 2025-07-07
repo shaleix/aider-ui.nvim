@@ -60,15 +60,12 @@ Default settings (can be overridden):
   -- Path to Python executable (must have Aider installed)
   python_path = "/usr/bin/python3",
 
-  -- aider start command args
+  -- aider start command args or function return args
   aider_cmd_args = {
     "--no-check-update",
     "--no-auto-commits",
     "--dark-mode",
   },
-
-  -- Aider watch file command arguments (uses aider_cmd_args with "--watch-files" if nil)
-  aider_cmd_args_watch_files = nil,
 
   -- session save dir path
   session_save_dir = ".aider_sessions",
