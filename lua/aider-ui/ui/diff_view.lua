@@ -112,6 +112,7 @@ function M.diff(diff_files)
   end, { noremap = true })
 
   popup:mount()
+  vim.api.nvim_set_option_value("undolevels", -1, { buf = popup.bufnr })
   M.init_render_diff(popup, diff_files)
   common.dim(popup.bufnr)
 end
