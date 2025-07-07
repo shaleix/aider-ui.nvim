@@ -191,6 +191,10 @@ M.setup = function()
     local confirm = require("aider-ui.ui.confirm")
     confirm.toggle_aider_confirm()
   end, { desc = "Toggle Aider confirm popup" })
+
+  vim.api.nvim_create_user_command("AiderRun", function()
+    require("aider-ui.ui.run").run()
+  end, { desc = "Run commands using Aider" })
 end
 
 return M

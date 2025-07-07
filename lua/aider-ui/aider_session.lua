@@ -412,6 +412,11 @@ function Session:git_commit(message)
   self:send_cmd("/commit " .. message)
 end
 
+---@param message string
+function Session:run(message)
+  self:send_cmd("/run " .. message)
+end
+
 ---@param path string
 ---@param on_response? handle_res
 function Session:save(path, on_response)
