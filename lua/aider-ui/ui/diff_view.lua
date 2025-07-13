@@ -154,10 +154,12 @@ function M.render_file(bufnr, file, start_lnum, end_lnum, winid)
           table.insert(file.cached_diff_lines, data)
         end,
         on_exit = function(j, return_code)
-          file.cached_diff_lines = { table.unpack(file.cached_diff_lines, 5) }
-          vim.schedule(function()
-            M.handle_render_file(bufnr, file, start_lnum, end_lnum)
-          end)
+          vim.defer_fn(function()
+            file.cached_diff_lines = { table.unpack(file.cached_diff_lines, 5) }
+            vim.schedule(function()
+              M.handle_render_file(bufnr, file, start_lnum, end_lnum)
+            end)
+          end, 100)
         end,
       })
       job:start()
