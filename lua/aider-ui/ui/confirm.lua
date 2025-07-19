@@ -69,7 +69,7 @@ local function render_confirm(session, bufnr, result)
 end
 
 function M.show_confirm(session_with_confirm)
-  local chat_history_popup, layout
+  local layout
 
   if not session_with_confirm then
     utils.info("No session requires confirmation")
@@ -190,47 +190,6 @@ function M.show_confirm(session_with_confirm)
   popup:map("n", "<CR>", function()
     on_confirm(current_value)
     popup:unmount()
-  end)
-
-  popup:map("n", "t", function()
-    if chat_history_popup then
-      return
-    end
-    -- Create history popup (not mounted separately)
-    chat_history_popup = nui_popup({
-      border = {
-        style = { " ", " ", " ", " ", " ", " ", " ", " " },
-        text = {
-          top = " Chat History ",
-          top_align = "center",
-        },
-      },
-      buf_options = {
-        filetype = "markdown",
-      },
-    })
-
-    layout:update(
-      {
-        size = {
-          width = popup_width,
-          height = 35,
-        },
-      },
-      Layout.Box({
-        Layout.Box(popup, {
-          size = {
-            height = popup_height + 3,
-          },
-        }),
-        Layout.Box(chat_history_popup, {
-          grow = 1,
-        }),
-      }, { dir = "col" })
-    )
-
-    -- Render history content
-    common.display_session_chat_history(session_with_confirm, chat_history_popup.bufnr, chat_history_popup.winid)
   end)
 
   -- Mount layout first then the popup

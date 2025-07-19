@@ -407,6 +407,22 @@ function Session:chat_history(callback)
   client:send("chat_history", {})
 end
 
+---@param callback? handle_res
+---@param params table {start_index: number, end_index: number?}
+function Session:get_output_history(params, callback)
+  local client = self:get_client()
+  client:connect(function(res, method, params)
+    if res.error and res.error ~= nil then
+      utils.err(vim.inspect(res.error), "get_output_history error (Aider)")
+    else
+      if callback ~= nil then
+        callback(res.result)
+      end
+    end
+  end)
+  client:send("get_output_history", params or {})
+end
+
 ---@param message string
 function Session:git_commit(message)
   self:send_cmd("/commit " .. message)

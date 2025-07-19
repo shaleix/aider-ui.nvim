@@ -10,7 +10,8 @@ local devicons = require("nvim-web-devicons")
 local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
 
----@param diff_files {path: string, before_path: string, after_path: string, opened: boolean}[]
+--- Displays a diff view for multiple files
+---@param diff_files {path: string, before_path: string, after_path: string, opened: boolean}[] Table of file diff information
 function M.diff(diff_files)
   local lines = {}
 
@@ -18,6 +19,11 @@ function M.diff(diff_files)
     if not item.opened or item.cached_diff_lines == nil then
       item.opened = false
     end
+  end
+
+  -- Automatically expand when there is only one file
+  if #diff_files == 1 then
+    diff_files[1].opened = true
   end
   for _, item in ipairs(diff_files) do
     local icon, _ = devicons.get_icon(item.path, nil, { default = true })
@@ -56,7 +62,7 @@ function M.diff(diff_files)
   })
 
   local function get_file_by_cursor(current_line)
-    local start_line = 1
+    local start_line = 2
     for _, item in ipairs(diff_files) do
       local file_lines = 1
       if item.opened then
@@ -71,10 +77,8 @@ function M.diff(diff_files)
     return nil
   end
 
-  popup:map("n", { "o", "<Tab>" }, function()
-    local current_line = vim.api.nvim_win_get_cursor(popup.winid)[1]
+  local function toggle_file_fold(current_line)
     local target_item, line_index = get_file_by_cursor(current_line)
-
     if target_item then
       local content_length = target_item.opened and #target_item.cached_diff_lines or 0
       target_item.opened = not target_item.opened
@@ -86,6 +90,11 @@ function M.diff(diff_files)
         vim.api.nvim_win_set_cursor(popup.winid, { line_index, 1 })
       end
     end
+  end
+
+  popup:map("n", { "o", "<Tab>" }, function()
+    local current_line = vim.api.nvim_win_get_cursor(popup.winid)[1]
+    toggle_file_fold(current_line)
   end, { noremap = true })
 
   popup:map("n", "<CR>", function()
@@ -114,14 +123,43 @@ function M.diff(diff_files)
   popup:mount()
   vim.api.nvim_set_option_value("undolevels", -1, { buf = popup.bufnr })
   M.init_render_diff(popup, diff_files)
+  vim.api.nvim_win_set_cursor(popup.winid, { 2, 0 })
+
+  -- Automatically trigger fold/unfold when there is only one file
+  if #diff_files == 1 then
+    vim.defer_fn(function()
+      toggle_file_fold(2)
+    end, 200)
+  end
+
   common.dim(popup.bufnr)
 end
 
+--- Initializes and renders the diff view
+---@param popup table The popup window object
+---@param diff_files table[] List of file diff information
 function M.init_render_diff(popup, diff_files)
   local bufnr = popup.bufnr
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {})
 
-  local current_lnum = 1
+  -- Calculate diff summary statistics for all files
+  local all_files = 0
+  local all_added = 0
+  local all_removed = 0
+  for _, item in ipairs(diff_files) do
+    if item.diff_summary then
+      all_files = all_files + 1
+      all_added = all_added + (item.diff_summary.added or 0)
+      all_removed = all_removed + (item.diff_summary.removed or 0)
+    end
+  end
+
+  -- Create a summary line and add it to the first line of the buffer
+  local summary_text = string.format("Modified %d files | +%d -%d", all_files, all_added, all_removed)
+  local summary_line = Line({ Text(summary_text, "AiderComment") })
+  summary_line:render(bufnr, -1, 1)
+
+  local current_lnum = 2 -- Start rendering the file list from the second line
   for _, item in ipairs(diff_files) do
     local end_lnum = nil
     if item.opened and item.cached_diff_lines then
@@ -131,6 +169,14 @@ function M.init_render_diff(popup, diff_files)
   end
 end
 
+--- Renders a single file's diff content in the popup
+--- If the file is opened and diff lines aren't cached, starts a delta job to generate them
+---@param bufnr integer Buffer number of the popup
+---@param file table File diff information
+---@param start_lnum integer Starting line number for rendering
+---@param end_lnum? integer|nil Ending line number from previous rendering (for clearing)
+---@param winid? integer Window ID of the popup
+---@return integer Next starting line number
 function M.render_file(bufnr, file, start_lnum, end_lnum, winid)
   if file.opened then
     if not file.cached_diff_lines then
@@ -164,20 +210,24 @@ function M.render_file(bufnr, file, start_lnum, end_lnum, winid)
           local check_interval = 100
           local last_length = 0
 
-          timer:start(0, check_interval, vim.schedule_wrap(function()
-            local current_length = #file.cached_diff_lines
-            local elapsed = vim.loop.now() - start_time
-            if elapsed >= max_wait_time or (current_length > 0 and current_length == last_length) then
-              timer:stop()
-              timer:close()
-              if current_length > 5 then
-                file.cached_diff_lines = { table.unpack(file.cached_diff_lines, 5) }
+          timer:start(
+            0,
+            check_interval,
+            vim.schedule_wrap(function()
+              local current_length = #file.cached_diff_lines
+              local elapsed = vim.loop.now() - start_time
+              if elapsed >= max_wait_time or (current_length > 0 and current_length == last_length) then
+                timer:stop()
+                timer:close()
+                if current_length > 5 then
+                  file.cached_diff_lines = { table.unpack(file.cached_diff_lines, 5) }
+                end
+                M.handle_render_file(bufnr, file, start_lnum, end_lnum)
+                return
               end
-              M.handle_render_file(bufnr, file, start_lnum, end_lnum)
-              return
-            end
-            last_length = current_length
-          end))
+              last_length = current_length
+            end)
+          )
         end,
       })
       job:start()
@@ -188,12 +238,13 @@ function M.render_file(bufnr, file, start_lnum, end_lnum, winid)
   return M.handle_render_file(bufnr, file, start_lnum, end_lnum)
 end
 
---- Renders the diff view for a single file
+--- Handles actual rendering of a file's diff content
+--- Renders file header and either shows diff lines or clears previous content
 ---@param bufnr integer Target buffer number
----@param file table File info table (contains path, opened state, cached diff lines, etc.)
----@param start_lnum integer Starting line number for rendering
----@param end_lnum? integer Optional ending line number from previous rendering (used to clear old content when folding)
----@return integer Returns the starting line number for the next file
+---@param file table File info table
+---@param start_lnum integer Starting line number
+---@param end_lnum? integer Optional ending line number
+---@return integer Next starting line number
 function M.handle_render_file(bufnr, file, start_lnum, end_lnum)
   local current_lnum = start_lnum
 
@@ -202,10 +253,14 @@ function M.handle_render_file(bufnr, file, start_lnum, end_lnum)
   local icon, _ = devicons.get_icon(file.path, nil, { default = true })
   local display_path = vim.fn.fnamemodify(file.path, ":.")
   icon = icon or ""
+  local diff_summary = file.diff_summary or { added = 0, removed = 0 }
+  local summary_text = string.format(" (+%d -%d)", diff_summary.added, diff_summary.removed)
+  local summary_text_obj = Text(summary_text, "AiderComment")
   local header_line = Line({
     Text(collapse_icon .. " ", "AiderComment"),
     Text(icon .. " "),
     Text(display_path),
+    summary_text_obj,
   })
   header_line:render(bufnr, -1, current_lnum)
   current_lnum = current_lnum + 1
@@ -223,6 +278,7 @@ function M.handle_render_file(bufnr, file, start_lnum, end_lnum)
   return current_lnum
 end
 
+--- Shows the last change made in the current session
 function M.view_current_session_last_change()
   local session = sessions.current_session()
   if session == nil then

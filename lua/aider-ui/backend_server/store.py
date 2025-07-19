@@ -50,11 +50,12 @@ class Store:
         self.waiting_drop_files: List[str] = []
         self.change_files = {
             "before_tmp_dir": "",
-            "files": [], 
+            "files": [],
         }
+        self.last_confirm_output_idx = 0
 
     def add_notify_message(self, data):
-        log.info('add_notify_message: %s', data)
+        log.info("add_notify_message: %s", data)
         self.notification_queue.put(data)
 
 

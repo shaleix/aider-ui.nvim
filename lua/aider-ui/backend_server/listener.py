@@ -50,6 +50,7 @@ def before_confirm(
     group=None,
     allow_never=False,
 ):
+    store.last_confirm_output_idx = len(store.output_history)
     if not store.running or (store.coder and store.coder.io.yes):
         log.debug(
             "skip confirm, for running: %s, store.coder: %s, store.coder.io.yes: %s",
@@ -78,6 +79,7 @@ def before_confirm(
     store.add_notify_message(
         {
             "type": NotifyType.CONFIRM_ASK,
+            "last_confirm_output_idx": store.last_confirm_output_idx,
             "confirm_info": dict(
                 question=question,
                 **confirm_info,

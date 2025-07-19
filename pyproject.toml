@@ -18,3 +18,26 @@ pythonPlatform = "Linux"
 executionEnvironments = [
   { root = "lua/aider-ui" }
 ]
+
+[tool.ruff]
+# 启用推荐的规则集
+select = ["E", "W", "F", "I", "B", "Q"]
+ignore = []
+
+# 行长度限制
+line-length = 88
+
+# 排除检查的目录
+exclude = [
+    "**/node_modules",
+    "**/__pycache__"
+]
+
+# Python版本设置
+target-version = "py312"
+
+# 特定规则设置
+[tool.ruff.flake8-quotes]
+inline-quotes = "double"
+multiline-quotes = "double"
+docstring-quotes = "double"

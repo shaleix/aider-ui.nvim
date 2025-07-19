@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import difflib
 import logging
 import os
 import tempfile
@@ -204,6 +205,22 @@ class CoderServerHandler:
                 break
         return chat_histories, None
 
+    def method_get_output_history(self, params):
+        """
+        Get output history with optional index range
+        Params: { "start_index": int, "end_index": int (optional) }
+        """
+        start_index = params.get("start_index", 0)
+        end_index = params.get("end_index", len(store.output_history))
+        
+        # Validate indices
+        if start_index < 0 or start_index > len(store.output_history):
+            return None, {"code": 32602, "message": "Invalid start_index"}
+        if end_index < 0 or end_index > len(store.output_history) or end_index < start_index:
+            return None, {"code": 32602, "message": "Invalid end_index"}
+            
+        return store.output_history[start_index:end_index], None
+
     def method_get_announcements(self, params):
         """
         Get announcements and settings content
@@ -310,6 +327,25 @@ class CoderServerHandler:
         store.change_files["files"].clear()
         return len(store.output_history)
 
+    @staticmethod
+    def _get_diff_summary(before_path: str, after_path: str) -> dict:
+        """计算文件修改前后的diff摘要"""
+        added = removed = 0
+        if before_path and after_path:
+            try:
+                with open(before_path, encoding="utf-8", errors="replace") as f1, \
+                     open(after_path, encoding="utf-8", errors="replace") as f2:
+                    lines1, lines2 = f1.readlines(), f2.readlines()
+                diff = difflib.unified_diff(lines1, lines2, n=0)
+                for line in diff:
+                    if line.startswith("+") and not line.startswith("+++"):
+                        added += 1
+                    elif line.startswith("-") and not line.startswith("---"):
+                        removed += 1
+            except Exception as e:
+                log.error("diff计算失败 %s: %s", before_path, e)
+        return {"added": added, "removed": removed}
+
     @classmethod
     def handle_cmd_complete(
         cls, message: Optional[str] = None, output_idx: Optional[int] = None
@@ -317,27 +353,26 @@ class CoderServerHandler:
         """
         handle chat process complete
         """
-        log.info(
-            "handle_cmd_complete: %s, output_idx: %s",
-            message,
-            output_idx,
-            stack_info=True,
-        )
+        log.info("handle_cmd_complete: %s, output_idx: %s", message, output_idx)
         assert store.coder is not None
         after_tmp_dir = tempfile.mkdtemp()
         after_tmp_map = copy_files_to_dir(
             [file["path"] for file in store.change_files["files"]],
             after_tmp_dir,
         )
-        modified_info = [
-            {
+        modified_info = []
+        for file in store.change_files["files"]:
+            file_info = {
                 "path": file["path"],
                 "abs_path": store.coder.abs_root_path(file["path"]),
                 "before_path": file.get("before_path"),
                 "after_path": after_tmp_map.get(file["path"]),
             }
-            for file in store.change_files["files"]
-        ]
+
+            file_info["diff_summary"] = cls._get_diff_summary(
+                file_info["before_path"], file_info["after_path"]
+            )
+            modified_info.append(file_info)
         store.running = False
         res_msg = ""
         if message and output_idx is not None:
