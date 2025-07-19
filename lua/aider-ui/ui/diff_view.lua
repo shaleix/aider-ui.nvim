@@ -154,12 +154,30 @@ function M.render_file(bufnr, file, start_lnum, end_lnum, winid)
           table.insert(file.cached_diff_lines, data)
         end,
         on_exit = function(j, return_code)
-          vim.defer_fn(function()
-            file.cached_diff_lines = { table.unpack(file.cached_diff_lines, 5) }
-            vim.schedule(function()
+          local timer = vim.loop.new_timer()
+          if timer == nil then
+            return
+          end
+
+          local max_wait_time = 4000
+          local start_time = vim.loop.now()
+          local check_interval = 100
+          local last_length = 0
+
+          timer:start(0, check_interval, vim.schedule_wrap(function()
+            local current_length = #file.cached_diff_lines
+            local elapsed = vim.loop.now() - start_time
+            if elapsed >= max_wait_time or (current_length > 0 and current_length == last_length) then
+              timer:stop()
+              timer:close()
+              if current_length > 5 then
+                file.cached_diff_lines = { table.unpack(file.cached_diff_lines, 5) }
+              end
               M.handle_render_file(bufnr, file, start_lnum, end_lnum)
-            end)
-          end, 100)
+              return
+            end
+            last_length = current_length
+          end))
         end,
       })
       job:start()
@@ -170,6 +188,12 @@ function M.render_file(bufnr, file, start_lnum, end_lnum, winid)
   return M.handle_render_file(bufnr, file, start_lnum, end_lnum)
 end
 
+--- Renders the diff view for a single file
+---@param bufnr integer Target buffer number
+---@param file table File info table (contains path, opened state, cached diff lines, etc.)
+---@param start_lnum integer Starting line number for rendering
+---@param end_lnum? integer Optional ending line number from previous rendering (used to clear old content when folding)
+---@return integer Returns the starting line number for the next file
 function M.handle_render_file(bufnr, file, start_lnum, end_lnum)
   local current_lnum = start_lnum
 
