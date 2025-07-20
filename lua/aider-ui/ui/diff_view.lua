@@ -10,6 +10,8 @@ local devicons = require("nvim-web-devicons")
 local sessions = require("aider-ui.aider_sessions_manager")
 local utils = require("aider-ui.utils")
 
+local START_LINE = 3
+
 --- Displays a diff view for multiple files
 ---@param diff_files {path: string, before_path: string, after_path: string, opened: boolean}[] Table of file diff information
 function M.diff(diff_files)
@@ -21,10 +23,6 @@ function M.diff(diff_files)
     end
   end
 
-  -- Automatically expand when there is only one file
-  if #diff_files == 1 then
-    diff_files[1].opened = true
-  end
   for _, item in ipairs(diff_files) do
     local icon, _ = devicons.get_icon(item.path, nil, { default = true })
     icon = icon or ""
@@ -62,7 +60,7 @@ function M.diff(diff_files)
   })
 
   local function get_file_by_cursor(current_line)
-    local start_line = 2
+    local start_line = START_LINE
     for _, item in ipairs(diff_files) do
       local file_lines = 1
       if item.opened then
@@ -123,13 +121,10 @@ function M.diff(diff_files)
   popup:mount()
   vim.api.nvim_set_option_value("undolevels", -1, { buf = popup.bufnr })
   M.init_render_diff(popup, diff_files)
-  vim.api.nvim_win_set_cursor(popup.winid, { 2, 0 })
-
+  vim.api.nvim_win_set_cursor(popup.winid, { START_LINE, 0 })
   -- Automatically trigger fold/unfold when there is only one file
   if #diff_files == 1 then
-    vim.defer_fn(function()
-      toggle_file_fold(2)
-    end, 200)
+    toggle_file_fold(START_LINE)
   end
 
   common.dim(popup.bufnr)
@@ -154,12 +149,19 @@ function M.init_render_diff(popup, diff_files)
     end
   end
 
-  -- Create a summary line and add it to the first line of the buffer
-  local summary_text = string.format("Modified %d files | +%d -%d", all_files, all_added, all_removed)
-  local summary_line = Line({ Text(summary_text, "AiderComment") })
+  -- Create a summary line with different highlights for each part
+  local summary_line = Line({
+    Text("Modified ", "AiderComment"),
+    Text(tostring(all_files), "AiderWarning"),
+    Text(" files | ", "AiderComment"),
+    Text("+" .. tostring(all_added), "AiderInfo"),
+    Text(" ", "AiderComment"),
+    Text("-" .. tostring(all_removed), "AiderError"),
+  })
   summary_line:render(bufnr, -1, 1)
+  vim.api.nvim_buf_set_lines(bufnr, 2, START_LINE + 1, false, { "", "" })
 
-  local current_lnum = 2 -- Start rendering the file list from the second line
+  local current_lnum = START_LINE
   for _, item in ipairs(diff_files) do
     local end_lnum = nil
     if item.opened and item.cached_diff_lines then

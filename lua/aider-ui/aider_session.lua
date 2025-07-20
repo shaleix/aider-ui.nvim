@@ -17,7 +17,7 @@ local events = require("aider-ui.events")
 ---@field dir string|nil
 ---@field watch_files boolean
 ---@field on_started function|nil
----@field modify_history table
+---@field modify_history {path: string, abs_path: string, before_path: string, after_path: string, diff_summary: {added: integer, removed: integer}}[]
 ---@field bufnr number
 ---@field confirm_info ConfirmInfo|nil
 ---@field processing boolean

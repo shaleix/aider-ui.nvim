@@ -195,6 +195,18 @@ M.setup = function()
   vim.api.nvim_create_user_command("AiderRun", function()
     require("aider-ui.ui.run").run()
   end, { desc = "Run commands using Aider" })
+
+  vim.api.nvim_create_user_command("TestDiffviews", function()
+    local diff_files = {
+      {
+        path="/home/shalei/workspace/aider-ui.nvim/lua/aider-ui/command.lua",
+        before_path="/tmp/command.lua",
+        after_path="/home/shalei/workspace/aider-ui.nvim/lua/aider-ui/command.lua",
+        diff_summary= {added = 1, removed = 2}
+      }
+    }
+    require("aider-ui.ui.diff_view").diff(diff_files)
+  end, { desc = "Test diffview for a single file" })
 end
 
 return M
