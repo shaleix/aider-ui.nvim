@@ -165,7 +165,9 @@ function Session:handle_notify(res)
     end
     events.SessionStarted:emit({ session = self })
   elseif res.type == "confirm_ask" then
-    utils.warn(res.prompt, "Aider Confirm (" .. self.name .. ")")
+    if not configs.auto_pop_confirm then
+      utils.warn(res.prompt, "Aider Confirm (" .. self.name .. ")")
+    end
     self.confirm_info = res.confirm_info
     self.need_confirm = true
     events.AskConfirm:emit({ session = self })

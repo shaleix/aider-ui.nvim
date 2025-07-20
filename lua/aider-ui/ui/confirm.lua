@@ -1,4 +1,3 @@
-local Layout = require("nui.layout")
 local nui_popup = require("nui.popup")
 local event = require("nui.utils.autocmd").event
 local common = require("aider-ui.ui.common")
@@ -50,7 +49,7 @@ local function render_confirm(session, popup, result)
     session:get_output_history({ start_index = last_idx }, function(output_history)
       if output_history and #output_history > 0 then
         for _, line in ipairs(output_history) do
-          table.insert(lines, NuiLine({ NuiText(line, "AiderComment") }))
+          table.insert(lines, NuiLine({ NuiText(line) }))
         end
         table.insert(lines, NuiLine({ NuiText("") }))
       end
