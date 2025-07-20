@@ -256,13 +256,15 @@ function M.handle_render_file(bufnr, file, start_lnum, end_lnum)
   local display_path = vim.fn.fnamemodify(file.path, ":.")
   icon = icon or ""
   local diff_summary = file.diff_summary or { added = 0, removed = 0 }
-  local summary_text = string.format(" (+%d -%d)", diff_summary.added, diff_summary.removed)
-  local summary_text_obj = Text(summary_text, "AiderComment")
   local header_line = Line({
     Text(collapse_icon .. " ", "AiderComment"),
     Text(icon .. " "),
     Text(display_path),
-    summary_text_obj,
+    Text(" (", "AiderComment"),
+    Text("+" .. tostring(diff_summary.added), "AiderInfo"),
+    Text(" ", "AiderComment"),
+    Text("-" .. tostring(diff_summary.removed), "AiderError"),
+    Text(")", "AiderComment"),
   })
   header_line:render(bufnr, -1, current_lnum)
   current_lnum = current_lnum + 1
