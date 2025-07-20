@@ -82,13 +82,16 @@ local function render_confirm(session, popup, result)
         end
       end
 
+      local max_height = math.floor(vim.o.lines * 0.8)
+      local display_height = math.min(#lines, max_height)
+
       for i, line in ipairs(lines) do
         line:render(popup.bufnr, -1, i)
       end
       popup:update_layout({
         size = {
           width = popup_width,
-          height = #lines,
+          height = display_height,
         },
       })
       if not popup.mounted then
