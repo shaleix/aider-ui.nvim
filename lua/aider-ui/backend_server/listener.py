@@ -79,8 +79,8 @@ def before_confirm(
     store.add_notify_message(
         {
             "type": NotifyType.CONFIRM_ASK,
-            "last_confirm_output_idx": store.last_confirm_output_idx,
             "confirm_info": dict(
+                last_confirm_output_idx=store.last_confirm_output_idx,
                 question=question,
                 **confirm_info,
             ),

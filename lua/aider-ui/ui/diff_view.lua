@@ -16,8 +16,12 @@ local START_LINE = 3
 ---@param diff_files {path: string, before_path: string, after_path: string, opened: boolean}[] Table of file diff information
 function M.diff(diff_files)
   local lines = {}
+  local first_time = false
 
   for _, item in ipairs(diff_files) do
+    if item.opened == nil then
+      first_time = true
+    end
     if not item.opened or item.cached_diff_lines == nil then
       item.opened = false
     end
@@ -123,7 +127,8 @@ function M.diff(diff_files)
   M.init_render_diff(popup, diff_files)
   vim.api.nvim_win_set_cursor(popup.winid, { START_LINE, 0 })
   -- Automatically trigger fold/unfold when there is only one file
-  if #diff_files == 1 then
+  -- 且是第一次显示（未打开过）
+  if #diff_files == 1 and first_time then
     toggle_file_fold(START_LINE)
   end
 

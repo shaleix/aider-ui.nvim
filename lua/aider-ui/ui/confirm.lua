@@ -6,6 +6,7 @@ local events = require("aider-ui.events")
 local utils = require("aider-ui.utils")
 
 local M = {}
+local MIN_WIDTH = 70
 
 local sessions_manager = require("aider-ui.aider_sessions_manager")
 local configs = require("aider-ui.config").options
@@ -14,12 +15,14 @@ local configs = require("aider-ui.config").options
 function M.setup()
   if configs.auto_pop_confirm then
     events.AskConfirm:add_handler(function()
-      for _, session in ipairs(sessions_manager.sessions) do
-        if session.need_confirm and session.confirm_info then
-          M.show_confirm(session)
-          break
+      vim.defer_fn(function()
+        for _, session in ipairs(sessions_manager.sessions) do
+          if session.need_confirm and session.confirm_info then
+            M.show_confirm(session)
+            break
+          end
         end
-      end
+      end, 200)
     end, "auto_confirm_pop")
   end
 end
@@ -35,42 +38,71 @@ function M.toggle_aider_confirm()
   utils.info("No session requires confirmation")
 end
 
-local function render_confirm(session, bufnr, result)
+local function render_confirm(session, popup, result)
   local NuiLine = require("nui.line")
   local NuiText = require("nui.text")
 
   local lines = {}
 
-  -- Add subject line if present
-  if session.confirm_info.subject and #session.confirm_info.subject > 0 then
-    for _, line in ipairs(session.confirm_info.subject) do
-      table.insert(lines, NuiLine({ NuiText(line, "AiderWarning") }))
-    end
-    table.insert(lines, NuiLine({ NuiText("") }))
-  end
+  -- Add output history if available
+  local last_idx = session.confirm_info.last_confirm_output_idx
+  if last_idx then
+    session:get_output_history({ start_index = last_idx }, function(output_history)
+      if output_history and #output_history > 0 then
+        for _, line in ipairs(output_history) do
+          table.insert(lines, NuiLine({ NuiText(line, "AiderComment") }))
+        end
+        table.insert(lines, NuiLine({ NuiText("") }))
+      end
+      table.insert(
+        lines,
+        NuiLine({ NuiText(" ", "AiderWarning"), NuiText(session.confirm_info.question, "AiderWarning") })
+      )
+      -- Add options
+      local option_line = NuiLine({ NuiText("> ", "AiderWarning") })
+      for _, opt in ipairs(session.confirm_info.options or {}) do
+        option_line:append(NuiText(" " .. opt.label .. " ", result == opt.value and "AiderH1" or ""))
+        option_line:append(NuiText(" "))
+      end
+      table.insert(lines, option_line)
+      -- Calculate max display width
+      local popup_width = MIN_WIDTH
+      local max_width = MIN_WIDTH + 60  -- 新增最大宽度限制
+      for _, line in ipairs(lines) do
+        local line_text = ""
+        for _, text in ipairs(line._texts) do
+          line_text = line_text .. text:content()
+        end
+        local line_width = vim.fn.strdisplaywidth(line_text)
+        -- 应用宽度限制
+        if line_width > max_width then
+          line_width = max_width
+        end
+        if line_width > popup_width then
+          popup_width = line_width
+        end
+      end
 
-  -- Add question line
-  table.insert(
-    lines,
-    NuiLine({ NuiText(" ", "AiderWarning"), NuiText(session.confirm_info.question, "AiderWarning") })
-  )
-  table.insert(lines, NuiLine({ NuiText("") }))
-
-  -- Add options
-  local option_line = NuiLine({ NuiText("> ", "AiderWarning") })
-  for _, opt in ipairs(session.confirm_info.options or {}) do
-    option_line:append(NuiText(" " .. opt.label .. " ", result == opt.value and "AiderH1" or ""))
-    option_line:append(NuiText(" "))
-  end
-  table.insert(lines, option_line)
-  for i, line in ipairs(lines) do
-    line:render(bufnr, -1, i)
+      for i, line in ipairs(lines) do
+        line:render(popup.bufnr, -1, i)
+      end
+      popup:update_layout({
+        size = {
+          width = popup_width,
+          height = #lines,
+        },
+      })
+      if not popup.mounted then
+        -- Mount popup directly
+        popup:mount()
+        common.dim(popup.bufnr)
+        vim.api.nvim_set_current_win(popup.winid)
+      end
+    end)
   end
 end
 
 function M.show_confirm(session_with_confirm)
-  local layout
-
   if not session_with_confirm then
     utils.info("No session requires confirmation")
     return
@@ -79,27 +111,7 @@ function M.show_confirm(session_with_confirm)
   local options = session_with_confirm.confirm_info.options or {}
   local original_winid = vim.api.nvim_get_current_win()
 
-  -- Calculate popup dimensions
-  local subject_lines = 0
-  local max_line_length = 0
-
-  -- Calculate height and max line length
-  if session_with_confirm.confirm_info.subject ~= nil and  #session_with_confirm.confirm_info.subject > 0 then
-    subject_lines = #session_with_confirm.confirm_info.subject + 1
-    max_line_length = math.max(max_line_length, #session_with_confirm.confirm_info.subject)
-  end
-  if session_with_confirm.confirm_info.question ~= nil then
-    max_line_length = math.max(max_line_length, #session_with_confirm.confirm_info.question)
-  end
-
-  -- Add padding for options line
-  max_line_length = max_line_length + 10
-
-  -- Set width constraints
-  local popup_width = math.min(math.max(max_line_length, 70), 120) -- min 50, max 90
-  local popup_height = subject_lines + 4 -- 4 = question + empty line + options + padding
-
-  -- Create confirmation popup as top part of layout
+  -- Create standalone confirmation popup
   local popup = nui_popup({
     focusable = true,
     border = {
@@ -116,26 +128,15 @@ function M.show_confirm(session_with_confirm)
       },
     },
     size = {
-      -- width = popup_width,
-      height = popup_height,
+      width = MIN_WIDTH,
+      height = 4,
     },
+    position = { row = "20%", col = "50%" },
+    relative = "editor",
     win_options = {
       winhighlight = "Normal:AiderInputFloatNormal,FloatBorder:AiderInputFloatBorder",
     },
   })
-
-  -- Initialize layout
-  local boxes = {
-    Layout.Box(popup, { size = "100%" }),
-  }
-  layout = Layout({
-    position = { row = "20%", col = "50%" },
-    relative = "editor",
-    size = {
-      width = popup_width,
-      height = popup_height + 3, -- Adjust overall height
-    },
-  }, Layout.Box(boxes, { dir = "col" }))
 
   local function on_confirm(result)
     session_with_confirm:send_cmd(result)
@@ -152,7 +153,7 @@ function M.show_confirm(session_with_confirm)
   end
 
   local function unmount_all()
-    layout:unmount()
+    popup:unmount()
     if original_winid then
       pcall(vim.api.nvim_set_current_win, original_winid)
     end
@@ -171,7 +172,7 @@ function M.show_confirm(session_with_confirm)
       end
     end
     current_value = options[(current_index % #options) + 1].value
-    render_confirm(session_with_confirm, popup.bufnr, current_value)
+    render_confirm(session_with_confirm, popup, current_value)
   end)
 
   popup:map("n", "<S-Tab>", function()
@@ -184,7 +185,7 @@ function M.show_confirm(session_with_confirm)
     end
     current_index = (current_index - 2) % #options + 1
     current_value = options[current_index].value
-    render_confirm(session_with_confirm, popup.bufnr, current_value)
+    render_confirm(session_with_confirm, popup, current_value)
   end)
 
   popup:map("n", "<CR>", function()
@@ -192,19 +193,8 @@ function M.show_confirm(session_with_confirm)
     popup:unmount()
   end)
 
-  -- Mount layout first then the popup
-  layout:mount()
-  common.dim(popup.bufnr)
-  vim.api.nvim_set_current_win(popup.winid)
-
-  render_confirm(session_with_confirm, popup.bufnr, current_value)
-
-  -- Set cursor position to the options line
-  local option_line_number = subject_lines + 3 -- Options line is after subject and question
-  vim.api.nvim_win_set_cursor(popup.winid, {option_line_number, 2}) -- Column 2 for "> "
-
-  -- Auto close when leaving layout
   popup:on(event.BufLeave, unmount_all)
+  render_confirm(session_with_confirm, popup, current_value)
 end
 
 return M

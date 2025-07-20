@@ -5,10 +5,11 @@ local events = require("aider-ui.events")
 
 ---@alias handle_res fun(res: table)
 ---@class ConfirmInfo
----@field question string
----@field default string
----@field subject table | nil
----@field allow_never boolean
+---@field question string 确认问题
+---@field default string 默认选项值
+---@field options {label: string, value: string}[] 选项列表
+---@field subject string[]? 可选主题文本（分行显示）
+---@field last_confirm_output_idx integer 输出历史中的索引，用于定位确认请求时的输出位置
 
 ---@class Session
 ---@field name string
