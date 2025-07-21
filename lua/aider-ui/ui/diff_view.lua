@@ -227,7 +227,7 @@ function M.render_file(bufnr, file, start_lnum, end_lnum, winid)
                 timer:stop()
                 timer:close()
                 if current_length > 5 then
-                  file.cached_diff_lines = { table.unpack(file.cached_diff_lines, 5) }
+                  file.cached_diff_lines = vim.list_slice(file.cached_diff_lines, 5)
                 end
                 M.handle_render_file(bufnr, file, start_lnum, end_lnum)
                 return
