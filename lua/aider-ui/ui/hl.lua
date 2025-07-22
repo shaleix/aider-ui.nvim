@@ -2,6 +2,7 @@ local M = {}
 
 M.colors = {
   H1 = "IncSearch",
+  H2 = "Cursor",
   PromptTitle = "FloatTitle",
   Comment = "Comment",
   Normal = "NormalFloat",

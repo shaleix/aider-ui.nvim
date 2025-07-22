@@ -99,7 +99,7 @@ M.setup = function()
   end, { desc = "Switch next aider session" })
 
   vim.api.nvim_create_user_command("AiderViewLastChange", function()
-    require("aider-ui.ui.diff_view").view_current_session_last_change()
+    require("aider-ui.ui.dashboard").toggle_diff_view()
   end, { desc = "View the last change in Aider" })
 
   vim.api.nvim_create_user_command("AiderLintCurrentBuffer", function()
