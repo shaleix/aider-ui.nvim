@@ -2,6 +2,7 @@ local M = {
   layout = nil,
   is_visible = false,
   content_type = nil,
+  original_winid = nil,  -- 新增：存储原始窗口ID
 }
 local FILE = "Files"
 local DIFF_VIEW = "DiffView"
@@ -166,6 +167,9 @@ function M.show_dashboard()
     }, { dir = "col" })
   )
 
+  -- 在挂载布局前记录当前窗口
+  M.original_winid = vim.api.nvim_get_current_win()
+
   -- 挂载布局
   layout:mount()
 
@@ -235,6 +239,12 @@ function M.close_dashboard()
     vim.cmd("checktime")
   end
   M.is_visible = false
+
+  -- 返回到原始窗口（如果仍然有效）
+  if M.original_winid and vim.api.nvim_win_is_valid(M.original_winid) then
+    vim.api.nvim_set_current_win(M.original_winid)
+    M.original_winid = nil  -- 重置避免内存泄漏
+  end
 end
 
 function M.toggle_dashboard()
