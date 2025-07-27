@@ -229,8 +229,8 @@ function FileBuffer:update_file_content()
         line:render(self.bufnr, -1, i)
       end
       vim.api.nvim_buf_set_lines(self.bufnr, #file_lines, -1, false, {})
+      vim.bo[self.bufnr].filetype = "aider_files"
       self.lines_node = lines_node
-      -- Optionally, you can use coder_info_data here if needed
     end
   end
 
