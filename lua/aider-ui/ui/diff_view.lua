@@ -287,6 +287,7 @@ function M.diff(diff_files)
   popup:mount()
   init_render_diff(popup, diff_files)
   common.dim(popup.bufnr)
+  return popup
 end
 
 
@@ -304,8 +305,10 @@ function M.view_current_session_last_change(popup)
     return
   end
   if popup == nil then
-    M.diff(last_change)
+    popup = M.diff(last_change)
+    vim.api.nvim_set_option_value("filetype", "aider_diff", { buf = popup.bufnr })
   else
+    vim.api.nvim_set_option_value("filetype", "aider_diff", { buf = popup.bufnr })
     init_render_diff(popup, last_change)
   end
 end
