@@ -1,4 +1,6 @@
 local config_module = require("aider-ui.config")
+local utils = require("aider-ui.utils")
+
 if not config_module then
   error("Failed to load config module: aider-ui.config - " .. debug.traceback())
 elseif not config_module.options then
@@ -241,6 +243,20 @@ function FileBuffer:update_file_content()
     coder_info_data = res
     update_if_ready()
   end)
+end
+
+function M.show_current_session(popup)
+  local sessions = require("aider-ui.aider_sessions_manager")
+  local current_session = sessions.current_session()
+  if current_session == nil then
+    utils.err("No active session.")
+    return
+  end
+
+  local bufnr = popup.bufnr
+  local file_buf = M.new_file_buffer(bufnr, current_session)
+  file_buf:update_file_content()
+  file_buf:keybind(popup)
 end
 
 return M

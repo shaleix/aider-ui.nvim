@@ -109,18 +109,15 @@ local function update_bottom(bottom_popup)
   end
 
   local bufnr = bottom_popup.bufnr
-  local current_session = sessions.current_session()
 
   -- Clear buffer before rendering new content
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {})
 
   if M.content_type == FILE then
-    local file_buf = files.new_file_buffer(bufnr, current_session)
-    file_buf:update_file_content()
-    file_buf:keybind(bottom_popup)
+    files.show_current_session(bottom_popup)
   elseif M.content_type == DIFF_VIEW then
     -- Show last change diff in the dashboard
-    diff_view.view_current_session_last_change(bottom_popup)
+    diff_view.show_current_session(bottom_popup)
   end
 end
 

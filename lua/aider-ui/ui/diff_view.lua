@@ -293,7 +293,7 @@ end
 
 --- Shows the last change made in the current session
 ---@param popup? table|nil Optional popup window object
-function M.view_current_session_last_change(popup)
+function M.show_current_session(popup)
   local session = sessions.current_session()
   if session == nil then
     utils.err("No active session.")
